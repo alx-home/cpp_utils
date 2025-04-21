@@ -1,2 +1,2 @@
-# promise
-C++ Promise coroutine : js like style
+# cpp_utils
+C++ Utilities
