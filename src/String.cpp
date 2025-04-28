@@ -24,6 +24,21 @@ SOFTWARE.
 
 #include "utils/String.h"
 
+std::stringstream
+operator""_ss(char const* str, unsigned long long size) {
+   return std::stringstream{{str, str + size}};
+}
+
+std::string_view
+operator""_sv(char const* str, unsigned long long size) {
+   return std::string_view{str, str + size};
+}
+
+std::string
+operator""_str(char const* str, unsigned long long size) {
+   return std::string{str, str + size};
+}
+
 #ifdef _WIN32
 
 namespace utils {

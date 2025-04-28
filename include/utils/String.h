@@ -24,6 +24,12 @@ SOFTWARE.
 
 #pragma once
 
+#include <sstream>
+
+std::stringstream operator""_ss(char const* str, unsigned long long);
+std::string_view  operator""_sv(char const* str, unsigned long long);
+std::string       operator""_str(char const* str, unsigned long long);
+
 #ifdef _WIN32
 #   include <Windows.h>
 
