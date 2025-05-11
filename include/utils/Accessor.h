@@ -68,6 +68,12 @@ public:
       return this->value_;
    }
 
+   template <class...>
+      requires(VISIBILITY == Edit::PUBLIC)
+   TYPE* operator->() {
+      return &this->value_;
+   }
+
 protected:
    template <class SELF, class TYPE2>
       requires(VISIBILITY == Edit::PROTECTED)
@@ -87,6 +93,12 @@ protected:
       requires(VISIBILITY == Edit::PROTECTED)
    TYPE& operator*() {
       return this->value_;
+   }
+
+   template <class...>
+      requires(VISIBILITY == Edit::PROTECTED)
+   TYPE* operator->() {
+      return &this->value_;
    }
 
 private:
@@ -110,6 +122,12 @@ private:
       return this->value_;
    }
 
+   template <class...>
+      requires(VISIBILITY == Edit::PRIVATE)
+   TYPE* operator->() {
+      return &this->value_;
+   }
+
    TYPE value_;
    TYPE const& (*getter_)(Member const&);
    void (*setter_)(Member&, TYPE);
@@ -120,6 +138,6 @@ private:
 }  // namespace accessor
 
 template <class PARENT, class TYPE, accessor::Edit VISIBILITY = accessor::Edit::PRIVATE>
-using Member = accessor::Member<PARENT, TYPE, VISIBILITY>;
+using SGet = accessor::Member<PARENT, TYPE, VISIBILITY>;
 
 using Access = accessor::Edit;
