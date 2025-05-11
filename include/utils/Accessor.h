@@ -28,9 +28,9 @@ SOFTWARE.
 
 namespace accessor {
 
-enum class Visibility { PUBLIC, PROTECTED, PRIVATE };
+enum class Edit { PUBLIC, PROTECTED, PRIVATE };
 
-template <class PARENT, class TYPE, Visibility VISIBILITY = Visibility::PRIVATE>
+template <class PARENT, class TYPE, Edit VISIBILITY = Edit::PRIVATE>
 class Member {
 public:
    constexpr Member(
@@ -49,7 +49,7 @@ public:
    TYPE const& operator*() const { return this->value_; }
 
    template <class SELF, class TYPE2>
-      requires(VISIBILITY == Visibility::PUBLIC)
+      requires(VISIBILITY == Edit::PUBLIC)
    Member<PARENT, TYPE, VISIBILITY>& operator=(this SELF&& self, TYPE2&& elem) {
       self.value_ = std::forward<TYPE2>(elem);
 
@@ -57,20 +57,20 @@ public:
    }
 
    template <class...>
-      requires(VISIBILITY == Visibility::PUBLIC)
+      requires(VISIBILITY == Edit::PUBLIC)
    explicit(false) operator TYPE&() {
       return this->value_;
    }
 
    template <class...>
-      requires(VISIBILITY == Visibility::PUBLIC)
+      requires(VISIBILITY == Edit::PUBLIC)
    TYPE& operator*() {
       return this->value_;
    }
 
 protected:
    template <class SELF, class TYPE2>
-      requires(VISIBILITY == Visibility::PROTECTED)
+      requires(VISIBILITY == Edit::PROTECTED)
    Member<PARENT, TYPE, VISIBILITY>& operator=(this SELF&& self, TYPE2&& elem) {
       self.value_ = std::forward<TYPE2>(elem);
 
@@ -78,20 +78,20 @@ protected:
    }
 
    template <class...>
-      requires(VISIBILITY == Visibility::PROTECTED)
+      requires(VISIBILITY == Edit::PROTECTED)
    explicit(false) operator TYPE&() {
       return this->value_;
    }
 
    template <class...>
-      requires(VISIBILITY == Visibility::PROTECTED)
+      requires(VISIBILITY == Edit::PROTECTED)
    TYPE& operator*() {
       return this->value_;
    }
 
 private:
    template <class SELF, class TYPE2>
-      requires(VISIBILITY == Visibility::PRIVATE)
+      requires(VISIBILITY == Edit::PRIVATE)
    Member<PARENT, TYPE, VISIBILITY>& operator=(this SELF&& self, TYPE2&& elem) {
       self.value_ = std::forward<TYPE2>(elem);
 
@@ -99,13 +99,13 @@ private:
    }
 
    template <class...>
-      requires(VISIBILITY == Visibility::PRIVATE)
+      requires(VISIBILITY == Edit::PRIVATE)
    explicit(false) operator TYPE&() {
       return this->value_;
    }
 
    template <class...>
-      requires(VISIBILITY == Visibility::PRIVATE)
+      requires(VISIBILITY == Edit::PRIVATE)
    TYPE& operator*() {
       return this->value_;
    }
@@ -119,7 +119,7 @@ private:
 
 }  // namespace accessor
 
-template <class PARENT, class TYPE, accessor::Visibility VISIBILITY = accessor::Visibility::PRIVATE>
+template <class PARENT, class TYPE, accessor::Edit VISIBILITY = accessor::Edit::PRIVATE>
 using Member = accessor::Member<PARENT, TYPE, VISIBILITY>;
 
-using AccVisi = accessor::Visibility;
+using Access = accessor::Edit;
