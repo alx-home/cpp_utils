@@ -26,12 +26,3 @@ SOFTWARE.
 
 template <typename FUNC>
 concept _function = requires(FUNC func) { func(); };
-
-// ----------------------- concat -------------------------------------------------
-
-#define CONCAT2(x, y) x##y
-#define CONCAT(x, y)  CONCAT2(x, y)
-
-// ----------------------- unamed variable ----------------------------------------
-
-#define _() CONCAT(_unamed, __COUNTER__)
