@@ -6,6 +6,7 @@ win32_library(TARGET_NAME alx-home_cpp_utils
   FILES
     src/String.cpp
     src/Nonce.cpp
+    src/MessageQueue.cpp
 )
 add_library(alx-home::cpp_utils ALIAS alx-home_cpp_utils)
 
