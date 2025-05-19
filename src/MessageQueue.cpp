@@ -57,6 +57,7 @@ MessageQueue::~MessageQueue() {
    {
       std::unique_lock lock{mutex_};
       runing_ = false;
+      cv_.notify_all();
    }
    thread_.join();
 }
@@ -66,6 +67,7 @@ MessageQueue::Dispatch(std::function<void()> func) {
    std::unique_lock lock{mutex_};
    if (runing_) {
       queue_.emplace_back(std::move(func));
+      cv_.notify_all();
       return true;
    }
 
