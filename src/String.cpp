@@ -1,7 +1,7 @@
 /*
 MIT License
 
-Copyright (c) 2025 alx-home
+Copyright (c) 2025 Alexandre GARCIN
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -79,11 +79,11 @@ NarrowString(std::wstring_view input) {
    auto  input_c      = input.data();
    auto  input_length = static_cast<int>(input.size());
    auto  required_length =
-      WideCharToMultiByte(cp, flags, input_c, input_length, nullptr, 0, nullptr, nullptr);
+     WideCharToMultiByte(cp, flags, input_c, input_length, nullptr, 0, nullptr, nullptr);
    if (required_length > 0) {
       std::string output(static_cast<std::size_t>(required_length), '\0');
       if (WideCharToMultiByte(
-             cp, flags, input_c, input_length, &output[0], required_length, nullptr, nullptr
+            cp, flags, input_c, input_length, &output[0], required_length, nullptr, nullptr
           )
           > 0) {
          return output;

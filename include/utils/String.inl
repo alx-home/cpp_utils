@@ -1,7 +1,7 @@
 /*
 MIT License
 
-Copyright (c) 2025 alx-home
+Copyright (c) 2025 Alexandre GARCIN
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -30,7 +30,8 @@ SOFTWARE.
 
 namespace utils {
 
-template <size_t SIZE> constexpr String<SIZE>::String(const char (&str)[SIZE]) {
+template <size_t SIZE>
+constexpr String<SIZE>::String(const char (&str)[SIZE]) {
    std::copy_n(str, SIZE, value_.begin());
 }
 

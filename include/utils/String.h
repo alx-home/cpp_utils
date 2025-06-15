@@ -1,7 +1,7 @@
 /*
 MIT License
 
-Copyright (c) 2025 alx-home
+Copyright (c) 2025 Alexandre GARCIN
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -49,7 +49,8 @@ std::string NarrowString(std::wstring_view input);
 
 namespace utils {
 
-template <size_t SIZE> struct String {
+template <size_t SIZE>
+struct String {
    constexpr explicit(false) String(const char (&str)[SIZE]);
 
    std::array<char, SIZE> value_{};
