@@ -28,18 +28,22 @@ SOFTWARE.
 #include <functional>
 #include <string_view>
 
-class MessageQueue {
+template <std::size_t SIZE = 10>
+class Poll {
 public:
-   explicit MessageQueue(std::string_view thread_name);
-   virtual ~MessageQueue();
+   explicit Poll(std::string_view thread_name);
+   virtual ~Poll();
 
    bool Dispatch(std::function<void()>);
 
 private:
-   bool                             runing_{true};
-   std::list<std::function<void()>> queue_{};
-   std::condition_variable          cv_{};
-   std::mutex                       mutex_{};
+   bool                                               runing_{true};
+   std::size_t                                        current_queue_{0};
+   std::array<std::list<std::function<void()>>, SIZE> queue_{};
+   std::condition_variable                            cv_{};
+   std::mutex                                         mutex_{};
 
-   std::jthread thread_;
+   std::array<std::jthread, SIZE> threads_;
 };
+
+#include "Poll.inl"
