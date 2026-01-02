@@ -51,7 +51,7 @@ namespace utils {
 
 template <size_t SIZE>
 struct String {
-   constexpr explicit(false) String(const char (&str)[SIZE]);
+   consteval explicit(false) String(const char (&str)[SIZE]);
 
    std::array<char, SIZE> value_{};
 };

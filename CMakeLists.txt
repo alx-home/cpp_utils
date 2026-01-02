@@ -7,8 +7,10 @@ win32_library(TARGET_NAME alx-home_cpp_utils
     src/String.cpp
     src/Nonce.cpp
     src/MessageQueue.cpp
+    src/encryption.cpp
 )
 add_library(alx-home::cpp_utils ALIAS alx-home_cpp_utils)
+target_link_libraries(alx-home_cpp_utils PRIVATE crypt32)
 
 target_include_directories(alx-home_cpp_utils PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
