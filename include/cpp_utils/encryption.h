@@ -1,13 +1,54 @@
+/*
+MIT License
+
+Copyright (c) 2025 Alexandre GARCIN
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
 #pragma once
+
+#include "Counter.h"
 #include "utils/String.h"
 #include <iostream>
 #include <string>
 #include <string_view>
 #include <vector>
-#include <cstdint>
 #include <cstddef>
 
 namespace cpp_utils {
+
+/**
+ * @brief Concatenates two std::array objects into a single std::array at compile time.
+ *
+ * This consteval function takes two std::array objects of the same type but possibly different
+ * sizes, and returns a new std::array containing all elements of the first array followed by all
+ * elements of the second array.
+ *
+ * @tparam T   The type of the elements in the arrays.
+ * @tparam N1  The size of the first array.
+ * @tparam N2  The size of the second array.
+ * @param a    The first input array.
+ * @param b    The second input array.
+ * @return std::array<T, N1 + N2>  A new array containing all elements of 'a' followed by all
+ * elements of 'b'.
+ */
 template <typename T, std::size_t N1, std::size_t N2>
 consteval std::array<T, N1 + N2>
 Concat(std::array<T, N1> const& a, std::array<T, N2> const& b) {
@@ -24,39 +65,81 @@ Concat(std::array<T, N1> const& a, std::array<T, N2> const& b) {
    return out;
 }
 
+/**
+ * @brief Combines two hash values into a single hash value.
+ *
+ * This function takes two hash values and combines them using a specific
+ * mixing algorithm to produce a new hash value. It is useful for
+ * combining the hashes of multiple fields when implementing hash functions
+ * for composite types.
+ *
+ * @param h The first hash value.
+ * @param v The second hash value to combine with the first.
+ * @return The combined hash value.
+ */
 consteval std::size_t
 HashCombine(std::size_t h, std::size_t v) {
    constexpr std::size_t k = 0x9e3779b97f4a7c15ULL;
    return h ^ (v + k + (h << 6) + (h >> 2));
 }
 
+/**
+ * @brief Generates a unique 8-byte identifier at compile time.
+ *
+ * This function generates a unique identifier based on the current
+ * compilation time and a counter to ensure uniqueness across multiple
+ * invocations within the same compilation unit.
+ *
+ * @return An array of 8 bytes representing the unique identifier.
+ */
+struct UniqueIdTag;
+template <
+  std::size_t ID = 0,
+  class FUN      = decltype([]() consteval { /* Force template re-instantiation */ })>
 consteval auto
-UniqueIdImpl(std::size_t counter, std::array<char, 9> time) {
-   std::array<char, 8> result{};
+UniqueId() {
+   if constexpr (CounterHelper<ID, UniqueIdTag>::Exists(ID)) {
+      return UniqueId<ID + 1>();
+   } else {
+      std::array<char, 9> time{__TIME__};
 
-   std::size_t seed =
-     (static_cast<std::size_t>(time[0]) << 40 | static_cast<std::size_t>(time[1]) << 32
-      | static_cast<std::size_t>(time[3]) << 24 | static_cast<std::size_t>(time[4]) << 16
-      | static_cast<std::size_t>(time[6]) << 8 | static_cast<std::size_t>(time[7]))
-     + counter;
+      std::array<char, 8> result{};
 
-   std::size_t h = seed;
-   for (char j : time) {
-      h = HashCombine(h, static_cast<std::size_t>(j));
+      std::size_t seed =
+        (static_cast<std::size_t>(time[0]) << 40 | static_cast<std::size_t>(time[1]) << 32
+         | static_cast<std::size_t>(time[3]) << 24 | static_cast<std::size_t>(time[4]) << 16
+         | static_cast<std::size_t>(time[6]) << 8 | static_cast<std::size_t>(time[7]))
+        + ID;
+
+      std::size_t h = seed;
+      for (char j : time) {
+         h = HashCombine(h, static_cast<std::size_t>(j));
+      }
+
+      result[0] = static_cast<char>(h & 0xFF);
+      result[1] = static_cast<char>((h >> 8) & 0xFF);
+      result[2] = static_cast<char>((h >> 16) & 0xFF);
+      result[3] = static_cast<char>((h >> 24) & 0xFF);
+      result[4] = static_cast<char>((h >> 32) & 0xFF);
+      result[5] = static_cast<char>((h >> 40) & 0xFF);
+      result[6] = static_cast<char>((h >> 48) & 0xFF);
+      result[7] = static_cast<char>((h >> 56) & 0xFF);
+      return result;
    }
-
-   result[0] = static_cast<char>(h & 0xFF);
-   result[1] = static_cast<char>((h >> 8) & 0xFF);
-   result[2] = static_cast<char>((h >> 16) & 0xFF);
-   result[3] = static_cast<char>((h >> 24) & 0xFF);
-   result[4] = static_cast<char>((h >> 32) & 0xFF);
-   result[5] = static_cast<char>((h >> 40) & 0xFF);
-   result[6] = static_cast<char>((h >> 48) & 0xFF);
-   result[7] = static_cast<char>((h >> 56) & 0xFF);
-   return result;
 }
 
-#define UNIQUE_ID() cpp_utils::UniqueIdImpl(__COUNTER__, {__TIME__})
+static_assert([]() consteval {
+   auto id1 = UniqueId();
+   auto id2 = UniqueId();
+
+   for (std::size_t i = 0; i < id1.size(); ++i) {
+      if (id1[i] != id2[i]) {
+         return true;
+      }
+   }
+
+   return false;
+}());
 
 /**
  * @brief Deobfuscates a string stored in the program's data section using a compile-time key.
