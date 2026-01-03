@@ -34,5 +34,9 @@ template <size_t SIZE>
 consteval String<SIZE>::String(const char (&str)[SIZE]) {
    std::copy_n(str, SIZE, value_.begin());
 }
+template <size_t SIZE>
+consteval String<SIZE>::String(std::array<char, SIZE> arr) {
+   std::copy_n(arr.begin(), SIZE, value_.begin());
+}
 
 }  // namespace utils
