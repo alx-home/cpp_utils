@@ -1,8 +1,10 @@
 #pragma once
 #include "utils/String.h"
 #include <algorithm>
+#include <iostream>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace cpp_utils {
 
@@ -22,6 +24,28 @@ DeobfuscateString(std::string_view obfuscated) {
    std::string result{obfuscated};
    for (std::size_t i = 0; i < result.size(); ++i) {
       result[i] = result[i] ^ KEY.value_[i % KEY.value_.size()];
+   }
+   return result;
+}
+
+/**
+ * @brief Deobfuscates a string stored in the program's data section using a compile-time key.
+ *
+ * This is intended for use with strings that are obfuscated at compile-time (e.g., XOR, ROT, etc.).
+ * The obfuscation method must match the one used at compile-time.
+ *
+ * @tparam Key The obfuscation key (e.g., single char for XOR, or string for more complex schemes).
+ * @param obfuscated The obfuscated string data.
+ * @return           The deobfuscated (plain) string.
+ */
+template <utils::String KEY>
+std::string
+DeobfuscateString(std::vector<char> const& obfuscated) {
+   std::string result{};
+   result.resize(obfuscated.size());
+   std::cout << KEY.value_.size() << std::endl;
+   for (std::size_t i = 0; i < result.size(); ++i) {
+      result[i] = obfuscated[i] ^ KEY.value_[i % KEY.value_.size()];
    }
    return result;
 }
