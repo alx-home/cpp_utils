@@ -98,21 +98,28 @@ struct CounterHelper {
  * tagging or type registration.
  *
  * @tparam ID The starting value for the counter (default is 0).
+ * @tparam TAG A tag type for reusing Counter in different contexts. Defaults to void.
+ * function.
  * @tparam (anonymous) An unnamed template parameter used to force template re-instantiation.
  * @return The first unused integral ID at compile time.
  */
 template <
   std::size_t ID = 0,
+  typename TAG   = void,
   class FUN      = decltype([]() consteval { /* Force template re-instantiation */ })>
 consteval auto
 Counter() {
-   if constexpr (CounterHelper<ID>::Exists(ID)) {
-      return Counter<ID + 1>();
+   if constexpr (CounterHelper<ID, TAG>::Exists(ID)) {
+      return Counter<ID + 1, TAG>();
    } else {
       return ID;
    }
 }
 
+struct CounterTagAssert;
 // Ensure that multiple calls yield different values
-static_assert(Counter() != Counter());
+static_assert(
+  Counter<0, CounterTagAssert>() != Counter<0, CounterTagAssert>(),
+  "Multiple calls to Counter should yield different values"
+);
 }  // namespace cpp_utils

@@ -138,18 +138,21 @@ UniqueId() {
 
 static_assert(sizeof(UniqueId()) == 8, "UniqueId should be 8 bytes long");
 static_assert(sizeof(UniqueId<2>()) == 16, "UniqueId should be 16 bytes long");
-static_assert([]() consteval {
-   auto id1 = UniqueId();
-   auto id2 = UniqueId();
+static_assert(
+  []() consteval {
+     auto id1 = UniqueId();
+     auto id2 = UniqueId();
 
-   for (std::size_t i = 0; i < id1.size(); ++i) {
-      if (id1[i] != id2[i]) {
-         return true;
-      }
-   }
+     for (std::size_t i = 0; i < id1.size(); ++i) {
+        if (id1[i] != id2[i]) {
+           return true;
+        }
+     }
 
-   return false;
-}());
+     return false;
+  }(),
+  "Multiple calls to UniqueId should yield different values"
+);
 
 /**
  * @brief Deobfuscates a string stored in the program's data section using a compile-time key.
