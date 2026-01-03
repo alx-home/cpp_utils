@@ -84,50 +84,60 @@ HashCombine(std::size_t h, std::size_t v) {
 }
 
 /**
- * @brief Generates a unique 8-byte identifier at compile time.
+ * @brief Generates a unique compile-time identifier based on the current time and invocation count.
  *
- * This function generates a unique identifier based on the current
- * compilation time and a counter to ensure uniqueness across multiple
- * invocations within the same compilation unit.
+ * This consteval function generates a unique identifier by hashing the current compilation time
+ * (using the __TIME__ macro) combined with an incrementing ID. The resulting identifier is an
+ * array of bytes that can be used for various purposes, such as unique keys or identifiers in
+ * compile-time contexts.
  *
- * @return An array of 8 bytes representing the unique identifier.
+ * @tparam SIZE The size of the resulting identifier in bytes (default is 1, resulting in 8 bytes).
+ * @tparam ID   The starting ID for uniqueness (default is 0).
+ * @tparam FUN  A dummy template parameter to force re-instantiation (default is a lambda).
+ * @return std::array<char, 8 * SIZE> A unique identifier as an array of bytes.
  */
 struct UniqueIdTag;
 template <
-  std::size_t ID = 0,
-  class FUN      = decltype([]() consteval { /* Force template re-instantiation */ })>
+  std::size_t SIZE = 1,
+  std::size_t ID   = 0,
+  class FUN        = decltype([]() consteval { /* Force template re-instantiation */ })>
 consteval auto
 UniqueId() {
    if constexpr (CounterHelper<ID, UniqueIdTag>::Exists(ID)) {
-      return UniqueId<ID + 1>();
+      return UniqueId<SIZE, ID + 1>();
    } else {
       std::array<char, 9> time{__TIME__};
 
-      std::array<char, 8> result{};
+      std::array<char, 8 * SIZE> result{};
 
       std::size_t seed =
         (static_cast<std::size_t>(time[0]) << 40 | static_cast<std::size_t>(time[1]) << 32
          | static_cast<std::size_t>(time[3]) << 24 | static_cast<std::size_t>(time[4]) << 16
          | static_cast<std::size_t>(time[6]) << 8 | static_cast<std::size_t>(time[7]))
-        + ID;
+        + ID * SIZE;
 
-      std::size_t h = seed;
-      for (char j : time) {
-         h = HashCombine(h, static_cast<std::size_t>(j));
+      for (std::size_t j = 0; j < SIZE; ++j) {
+         std::size_t h = seed + j;
+         for (char i : time) {
+            h = HashCombine(h, static_cast<std::size_t>(i));
+         }
+
+         result[j * 8 + 0] = static_cast<char>(h & 0xFF);
+         result[j * 8 + 1] = static_cast<char>((h >> 8) & 0xFF);
+         result[j * 8 + 2] = static_cast<char>((h >> 16) & 0xFF);
+         result[j * 8 + 3] = static_cast<char>((h >> 24) & 0xFF);
+         result[j * 8 + 4] = static_cast<char>((h >> 32) & 0xFF);
+         result[j * 8 + 5] = static_cast<char>((h >> 40) & 0xFF);
+         result[j * 8 + 6] = static_cast<char>((h >> 48) & 0xFF);
+         result[j * 8 + 7] = static_cast<char>((h >> 56) & 0xFF);
       }
 
-      result[0] = static_cast<char>(h & 0xFF);
-      result[1] = static_cast<char>((h >> 8) & 0xFF);
-      result[2] = static_cast<char>((h >> 16) & 0xFF);
-      result[3] = static_cast<char>((h >> 24) & 0xFF);
-      result[4] = static_cast<char>((h >> 32) & 0xFF);
-      result[5] = static_cast<char>((h >> 40) & 0xFF);
-      result[6] = static_cast<char>((h >> 48) & 0xFF);
-      result[7] = static_cast<char>((h >> 56) & 0xFF);
       return result;
    }
 }
 
+static_assert(sizeof(UniqueId()) == 8, "UniqueId should be 8 bytes long");
+static_assert(sizeof(UniqueId<2>()) == 16, "UniqueId should be 16 bytes long");
 static_assert([]() consteval {
    auto id1 = UniqueId();
    auto id2 = UniqueId();
