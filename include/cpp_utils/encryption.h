@@ -26,6 +26,8 @@ SOFTWARE.
 
 #include "utils/String.h"
 
+#include "uuid.h"
+
 #include <iostream>
 #include <source_location>
 #include <string>
@@ -67,16 +69,15 @@ Concat(std::array<T, N1> const& a, std::array<T, N2> const& b) {
 }
 
 /**
- * @brief Combines two hash values into a single hash value.
+ * @brief Computes a hash value using the FNV-1a algorithm with additional mixing.
  *
- * This function takes two hash values and combines them using a specific
- * mixing algorithm to produce a new hash value. It is useful for
- * combining the hashes of multiple fields when implementing hash functions
- * for composite types.
+ * This function applies the FNV-1a hash algorithm, incorporating a single byte value (`v`)
+ * into an existing hash value (`h`). It uses FNV and Murmur-inspired mixing steps to achieve
+ * good distribution and avalanche properties.
  *
- * @param h The first hash value.
- * @param v The second hash value to combine with the first.
- * @return The combined hash value.
+ * @param h The initial hash value to be updated.
+ * @param v The byte value to mix into the hash.
+ * @return The updated hash value after mixing in the byte.
  */
 consteval std::size_t
 Hash(std::size_t h, std::uint8_t v) {
@@ -106,8 +107,7 @@ struct UniqueIdTag;
 template <std::size_t SIZE = 1>
 consteval auto
 UniqueId(std::source_location const& source = std::source_location::current()) {
-   std::array<char, 9> time{__TIME__};
-
+   std::array<char, sizeof(PROJECT_BUILD_UUID)> time{PROJECT_BUILD_UUID};
    std::array<char, sizeof(std::size_t) * SIZE> result{};
 
    auto const filename = source.file_name();
