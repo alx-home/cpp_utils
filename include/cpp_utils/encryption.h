@@ -27,6 +27,7 @@ SOFTWARE.
 #include "Counter.h"
 #include "utils/String.h"
 #include <iostream>
+#include <source_location>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -97,43 +98,37 @@ HashCombine(std::size_t h, std::size_t v) {
  * @return std::array<char, 8 * SIZE> A unique identifier as an array of bytes.
  */
 struct UniqueIdTag;
-template <
-  std::size_t SIZE = 1,
-  std::size_t ID   = 0,
-  class FUN        = decltype([]() consteval { /* Force template re-instantiation */ })>
+template <std::size_t SIZE = 1>
 consteval auto
-UniqueId() {
-   if constexpr (CounterHelper<ID, UniqueIdTag>::Exists(ID)) {
-      return UniqueId<SIZE, ID + 1>();
-   } else {
-      std::array<char, 9> time{__TIME__};
+UniqueId(std::source_location const& source = std::source_location::current()) {
+   std::array<char, 9> time{__TIME__};
 
-      std::array<char, 8 * SIZE> result{};
+   std::array<char, 8 * SIZE> result{};
 
-      std::size_t seed =
-        (static_cast<std::size_t>(time[0]) << 40 | static_cast<std::size_t>(time[1]) << 32
-         | static_cast<std::size_t>(time[3]) << 24 | static_cast<std::size_t>(time[4]) << 16
-         | static_cast<std::size_t>(time[6]) << 8 | static_cast<std::size_t>(time[7]))
-        + ID * SIZE;
+   auto const filename = source.file_name();
 
-      for (std::size_t j = 0; j < SIZE; ++j) {
-         std::size_t h = seed + j;
-         for (char i : time) {
-            h = HashCombine(h, static_cast<std::size_t>(i));
-         }
+   std::size_t seed =
+     (static_cast<std::size_t>(time[0]) << 40 | static_cast<std::size_t>(time[1]) << 32
+      | static_cast<std::size_t>(time[3]) << 24 | static_cast<std::size_t>(time[4]) << 16
+      | static_cast<std::size_t>(time[6]) << 8 | static_cast<std::size_t>(time[7]));
 
-         result[j * 8 + 0] = static_cast<char>(h & 0xFF);
-         result[j * 8 + 1] = static_cast<char>((h >> 8) & 0xFF);
-         result[j * 8 + 2] = static_cast<char>((h >> 16) & 0xFF);
-         result[j * 8 + 3] = static_cast<char>((h >> 24) & 0xFF);
-         result[j * 8 + 4] = static_cast<char>((h >> 32) & 0xFF);
-         result[j * 8 + 5] = static_cast<char>((h >> 40) & 0xFF);
-         result[j * 8 + 6] = static_cast<char>((h >> 48) & 0xFF);
-         result[j * 8 + 7] = static_cast<char>((h >> 56) & 0xFF);
+   for (std::size_t j = 0; j < SIZE; ++j) {
+      std::size_t h = seed + j + source.line() * 200 + source.column();
+      for (std::size_t i = 0; filename[i] != '\0'; ++i) {
+         h = HashCombine(h, static_cast<std::size_t>(filename[i]));
       }
 
-      return result;
+      result[j * 8 + 0] = static_cast<char>(h & 0xFF);
+      result[j * 8 + 1] = static_cast<char>((h >> 8) & 0xFF);
+      result[j * 8 + 2] = static_cast<char>((h >> 16) & 0xFF);
+      result[j * 8 + 3] = static_cast<char>((h >> 24) & 0xFF);
+      result[j * 8 + 4] = static_cast<char>((h >> 32) & 0xFF);
+      result[j * 8 + 5] = static_cast<char>((h >> 40) & 0xFF);
+      result[j * 8 + 6] = static_cast<char>((h >> 48) & 0xFF);
+      result[j * 8 + 7] = static_cast<char>((h >> 56) & 0xFF);
    }
+
+   return result;
 }
 
 static_assert(sizeof(UniqueId()) == 8, "UniqueId should be 8 bytes long");
