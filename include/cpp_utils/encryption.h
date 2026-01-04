@@ -24,8 +24,8 @@ SOFTWARE.
 
 #pragma once
 
-#include "Counter.h"
 #include "utils/String.h"
+
 #include <iostream>
 #include <source_location>
 #include <string>
@@ -79,9 +79,14 @@ Concat(std::array<T, N1> const& a, std::array<T, N2> const& b) {
  * @return The combined hash value.
  */
 consteval std::size_t
-HashCombine(std::size_t h, std::size_t v) {
-   constexpr std::size_t k = 0x9e3779b97f4a7c15ULL;
-   return h ^ (v + k + (h << 6) + (h >> 2));
+Hash(std::size_t h, std::uint8_t v) {
+   h ^= v;
+   h *= 0x100000001b3ULL;
+   h ^= (h >> 32);
+   h *= 0xff51afd7ed558ccdULL;
+   h ^= (h >> 33);
+
+   return h;
 }
 
 /**
@@ -103,29 +108,34 @@ consteval auto
 UniqueId(std::source_location const& source = std::source_location::current()) {
    std::array<char, 9> time{__TIME__};
 
-   std::array<char, 8 * SIZE> result{};
+   std::array<char, sizeof(std::size_t) * SIZE> result{};
 
    auto const filename = source.file_name();
 
-   std::size_t seed =
-     (static_cast<std::size_t>(time[0]) << 40 | static_cast<std::size_t>(time[1]) << 32
-      | static_cast<std::size_t>(time[3]) << 24 | static_cast<std::size_t>(time[4]) << 16
-      | static_cast<std::size_t>(time[6]) << 8 | static_cast<std::size_t>(time[7]));
+   std::size_t hash = 0xcbf29ce484222325ULL;
+
+   hash = Hash(hash, time[0]);
+   hash = Hash(hash, time[1]);
+   hash = Hash(hash, time[3]);
+   hash = Hash(hash, time[4]);
+   hash = Hash(hash, time[6]);
+   hash = Hash(hash, time[7]);
+
+   for (std::size_t i = 0; i < sizeof(source.line()); ++i) {
+      hash = Hash(hash, static_cast<std::uint8_t>((source.line() >> (i * 8)) & 0xFF));
+   }
+   for (std::size_t i = 0; i < sizeof(source.column()); ++i) {
+      hash = Hash(hash, static_cast<std::uint8_t>((source.column() >> (i * 8)) & 0xFF));
+   }
 
    for (std::size_t j = 0; j < SIZE; ++j) {
-      std::size_t h = seed + j + source.line() * 200 + source.column();
       for (std::size_t i = 0; filename[i] != '\0'; ++i) {
-         h = HashCombine(h, static_cast<std::size_t>(filename[i]));
+         hash = Hash(hash, static_cast<std::uint8_t>(filename[i]));
       }
 
-      result[j * 8 + 0] = static_cast<char>(h & 0xFF);
-      result[j * 8 + 1] = static_cast<char>((h >> 8) & 0xFF);
-      result[j * 8 + 2] = static_cast<char>((h >> 16) & 0xFF);
-      result[j * 8 + 3] = static_cast<char>((h >> 24) & 0xFF);
-      result[j * 8 + 4] = static_cast<char>((h >> 32) & 0xFF);
-      result[j * 8 + 5] = static_cast<char>((h >> 40) & 0xFF);
-      result[j * 8 + 6] = static_cast<char>((h >> 48) & 0xFF);
-      result[j * 8 + 7] = static_cast<char>((h >> 56) & 0xFF);
+      for (std::size_t i = 0; i < sizeof(std::size_t); ++i) {
+         result[j * sizeof(std::size_t) + i] = static_cast<char>((hash >> (i * 8)) & 0xFF);
+      }
    }
 
    return result;
