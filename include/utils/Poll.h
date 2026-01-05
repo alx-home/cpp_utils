@@ -38,7 +38,6 @@ public:
 
 private:
    bool                                               runing_{true};
-   std::size_t                                        current_queue_{0};
    std::array<std::list<std::function<void()>>, SIZE> queue_{};
    std::condition_variable                            cv_{};
    std::mutex                                         mutex_{};

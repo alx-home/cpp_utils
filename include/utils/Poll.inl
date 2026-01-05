@@ -76,8 +76,16 @@ bool
 Poll<SIZE>::Dispatch(std::function<void()> func) {
    std::unique_lock lock{mutex_};
    if (runing_) {
-      current_queue_ = (current_queue_ + 1) % SIZE;
-      queue_[current_queue_].emplace_back(std::move(func));
+      auto        queue    = queue_.begin();
+      std::size_t min_size = queue->size();
+
+      for (auto it = std::next(queue); it != queue_.end(); ++it) {
+         if (it->size() < min_size) {
+            queue    = it;
+            min_size = it->size();
+         }
+      }
+      queue->emplace_back(std::move(func));
       cv_.notify_all();
       return true;
    }
