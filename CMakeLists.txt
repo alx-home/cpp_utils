@@ -12,13 +12,18 @@ win32_library(TARGET_NAME alx-home_cpp_utils
 add_library(alx-home::cpp_utils ALIAS alx-home_cpp_utils)
 target_link_libraries(alx-home_cpp_utils PRIVATE crypt32)
 
-execute_process(
+set(CUSTOM_UUID "GENERATED" CACHE STRING "Use a custom UUID seed for unique ids")
+
+if("${CUSTOM_UUID}" STREQUAL "GENERATED")
+  execute_process(
     COMMAND powershell -Command "$bytes = New-Object byte[] 32; [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes); [BitConverter]::ToString($bytes).Replace('-', '').ToLower()"
     OUTPUT_VARIABLE UUID
     OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-
-message(STATUS "Generated UUID: ${UUID}")
+  )
+  message(STATUS "Generated UUID: ${UUID}")
+else()
+  set(UUID ${CUSTOM_UUID})
+endif()
 
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/src/uuid_config.h.in
