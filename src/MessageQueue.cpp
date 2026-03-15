@@ -37,6 +37,24 @@ MessageQueue::MessageQueue(std::string_view thread_name)
           while (true) {
              std::unique_lock lock{mutex_};
 
+             if (delayed_events_.size()) {
+                // Move delayed events that are due to the main queue
+
+                auto const upper_bound =
+                  delayed_events_.upper_bound(std::chrono::steady_clock::now());
+                for (auto it = delayed_events_.begin(); it != upper_bound;) {
+                   auto func = std::move(it->second);
+                   queue_.emplace_back(std::move(func));
+                   it = delayed_events_.erase(it);
+                }
+
+                if (!delayed_events_.empty()) {
+                   next_event_ = std::min(next_event_, delayed_events_.begin()->first);
+                } else {
+                   next_event_ = time_point::max();
+                }
+             }
+
              if (queue_.size()) {
                 auto elem = std::move(queue_.front());
                 queue_.pop_front();
@@ -44,7 +62,7 @@ MessageQueue::MessageQueue(std::string_view thread_name)
 
                 elem();
              } else if (runing_) {
-                cv_.wait(lock);
+                cv_.wait_until(lock, next_event_);
              } else {
                 break;
              }
@@ -63,13 +81,28 @@ MessageQueue::~MessageQueue() {
 }
 
 bool
-MessageQueue::Dispatch(std::function<void()> func) {
+MessageQueue::Dispatch(std::function<void()>&& func, std::optional<time_point> delay) {
    std::unique_lock lock{mutex_};
    if (runing_) {
-      queue_.emplace_back(std::move(func));
+      if (delay) {
+         delayed_events_.emplace(*delay, std::move(func));
+         next_event_ = std::min(next_event_, delayed_events_.begin()->first);
+      } else {
+         queue_.emplace_back(std::move(func));
+      }
       cv_.notify_all();
       return true;
    }
 
    return false;
+}
+
+bool
+MessageQueue::Dispatch(std::function<void()>&& func, duration delay) {
+   return Dispatch(std::move(func), std::chrono::steady_clock::now() + delay);
+}
+
+std::thread::id
+MessageQueue::ThreadId() const {
+   return thread_.get_id();
 }

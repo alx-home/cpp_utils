@@ -25,7 +25,10 @@ SOFTWARE.
 #pragma once
 
 #include <condition_variable>
+#include <coroutine>
 #include <functional>
+#include <map>
+#include <optional>
 #include <string_view>
 
 class MessageQueue {
@@ -33,13 +36,47 @@ public:
    explicit MessageQueue(std::string_view thread_name);
    virtual ~MessageQueue();
 
-   bool Dispatch(std::function<void()>);
+   using time_point = std::chrono::steady_clock::time_point;
+   bool Dispatch(std::function<void()>&&, std::optional<time_point> delay = std::nullopt);
+   using duration = std::chrono::steady_clock::duration;
+   bool Dispatch(std::function<void()>&&, duration delay);
+
+private:
+   class Dispatcher {
+   public:
+      Dispatcher(MessageQueue& queue, std::optional<time_point> until = std::nullopt)
+         : queue_{queue}
+         , until_{until} {}
+
+      bool await_ready() const { return false; }
+      auto await_suspend(std::coroutine_handle<> h) const {
+         queue_.Dispatch([&h] constexpr { h.resume(); }, until_);
+      }
+      void await_resume() const noexcept(false) {}
+
+      Dispatcher operator()(time_point until) const { return Dispatcher{queue_, until}; }
+      Dispatcher operator()(duration delay) const {
+         return Dispatcher{queue_, std::chrono::steady_clock::now() + delay};
+      }
+
+   private:
+      MessageQueue&             queue_;
+      std::optional<time_point> until_{std::nullopt};
+   };
+
+public:
+   Dispatcher dispatch_{*this};
+
+   std::thread::id ThreadId() const;
 
 private:
    bool                             runing_{true};
    std::list<std::function<void()>> queue_{};
    std::condition_variable          cv_{};
    std::mutex                       mutex_{};
+
+   time_point                                  next_event_{time_point::max()};
+   std::map<time_point, std::function<void()>> delayed_events_{};
 
    std::jthread thread_;
 };
