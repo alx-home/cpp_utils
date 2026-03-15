@@ -50,7 +50,7 @@ private:
 
       bool await_ready() const { return false; }
       auto await_suspend(std::coroutine_handle<> h) const {
-         queue_.Dispatch([&h] constexpr { h.resume(); }, until_);
+         queue_.Dispatch([h] constexpr { h.resume(); }, until_);
       }
       void await_resume() const noexcept(false) {}
 
