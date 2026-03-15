@@ -62,6 +62,18 @@ MessageQueue::MessageQueue(std::string_view thread_name)
 
                 elem();
              } else if (runing_) {
+                cv_.wait(lock);
+             } else if (delayed_events_.size()) {
+                // Deplete delayed events if we're stopping, to avoid leaving pending events that
+                // will never be executed
+                for (auto& [_, func] : delayed_events_) {
+                   func();
+                }
+             } else {
+                break;
+             }
+
+             if (runing_) {
                 cv_.wait_until(lock, next_event_);
              } else {
                 break;
