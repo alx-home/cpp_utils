@@ -26,6 +26,7 @@ SOFTWARE.
 #include "utils/String.h"
 
 #include <processthreadsapi.h>
+#include <cassert>
 
 MessageQueue::MessageQueue(std::string_view thread_name)
    : thread_(
@@ -41,7 +42,8 @@ MessageQueue::MessageQueue(std::string_view thread_name)
                 // Move delayed events that are due to the main queue
 
                 auto const upper_bound =
-                  delayed_events_.upper_bound(std::chrono::steady_clock::now());
+                  runing_ ? delayed_events_.upper_bound(std::chrono::steady_clock::now())
+                          : delayed_events_.end();
                 for (auto it = delayed_events_.begin(); it != upper_bound;) {
                    auto func = std::move(it->second);
                    queue_.emplace_back(std::move(func));
@@ -62,26 +64,26 @@ MessageQueue::MessageQueue(std::string_view thread_name)
 
                 elem();
              } else if (runing_) {
-                cv_.wait(lock);
-             } else if (delayed_events_.size()) {
-                // Deplete delayed events if we're stopping, to avoid leaving pending events that
-                // will never be executed
-                for (auto& [_, func] : delayed_events_) {
-                   func();
-                }
-             } else {
-                break;
-             }
-
-             if (runing_) {
+#ifndef NDEBUG
+                SetThreadDescription(
+                  GetCurrentThread(), (utils::WidenString(std::move(thread_name)) + L" IDL").c_str()
+                );
+#endif
                 cv_.wait_until(lock, next_event_);
+#ifndef NDEBUG
+                SetThreadDescription(
+                  GetCurrentThread(), utils::WidenString(std::move(thread_name)).c_str()
+                );
+#endif
              } else {
+                assert(delayed_events_.empty());
                 break;
              }
           }
        },
        std::move(thread_name)
-     ) {}
+     ) {
+}
 
 MessageQueue::~MessageQueue() {
    {

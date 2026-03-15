@@ -48,14 +48,18 @@ Poll<SIZE>::Poll(std::string_view thread_name) {
 
                  elem();
               } else if (runing_) {
+#ifndef NDEBUG
                  SetThreadDescription(
                    GetCurrentThread(),
                    (utils::WidenString(std::move(thread_name)) + L" IDL").c_str()
                  );
+#endif
                  cv_.wait(lock);
+#ifndef NDEBUG
                  SetThreadDescription(
                    GetCurrentThread(), utils::WidenString(std::move(thread_name)).c_str()
                  );
+#endif
               } else {
                  break;
               }
