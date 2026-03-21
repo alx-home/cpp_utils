@@ -28,12 +28,13 @@ SOFTWARE.
 #include "utils/String.h"
 
 #include <processthreadsapi.h>
+#include <algorithm>
 
 template <std::size_t SIZE>
 Poll<SIZE>::Poll(std::string_view thread_name) {
    for (std::size_t i = 0; i < SIZE; ++i) {
       threads_[i] = std::jthread{
-        [this, i](std::string&& thread_name) constexpr {
+        [this](std::string&& thread_name) constexpr {
            SetThreadDescription(
              GetCurrentThread(), utils::WidenString(std::move(thread_name)).c_str()
            );
@@ -41,31 +42,58 @@ Poll<SIZE>::Poll(std::string_view thread_name) {
            while (true) {
               std::unique_lock lock{mutex_};
 
-              if (queue_[i].size()) {
-                 auto elem = std::move(queue_[i].front());
-                 queue_[i].pop_front();
+              if (delayed_events_.size()) {
+                 // Move delayed events that are due to the main queue
+
+                 auto const upper_bound =
+                   running_ ? delayed_events_.upper_bound(std::chrono::steady_clock::now())
+                            : delayed_events_.end();
+                 for (auto it = delayed_events_.begin(); it != upper_bound;) {
+                    auto func = std::move(it->second);
+                    queue_.emplace_back(std::move(func));
+                    it = delayed_events_.erase(it);
+                 }
+
+                 if (!delayed_events_.empty()) {
+                    next_event_ = std::min(next_event_, delayed_events_.begin()->first);
+                 } else {
+                    next_event_ = time_point::max();
+                 }
+              }
+
+              if (queue_.size()) {
+                 auto elem = std::move(queue_.front());
+                 queue_.pop_front();
                  lock.unlock();
 
                  elem();
-              } else if (runing_) {
+              } else if (running_) {
 #ifndef NDEBUG
                  SetThreadDescription(
                    GetCurrentThread(),
                    (utils::WidenString(std::move(thread_name)) + L" IDL").c_str()
                  );
 #endif
-                 cv_.wait(lock);
+                 cv_.wait_until(lock, next_event_);
 #ifndef NDEBUG
                  SetThreadDescription(
                    GetCurrentThread(), utils::WidenString(std::move(thread_name)).c_str()
                  );
 #endif
               } else {
+                 assert(delayed_events_.empty());
                  break;
               }
            }
         },
-        std::string{thread_name} + " #" + std::to_string(i)
+        [i, &thread_name] constexpr -> std::string {
+           if constexpr (SIZE == 1) {
+              auto const _{i};
+              return std::string{thread_name};
+           } else {
+              return std::string{thread_name} + " #" + std::to_string(i);
+           }
+        }()
       };
    }
 }
@@ -74,7 +102,7 @@ template <std::size_t SIZE>
 Poll<SIZE>::~Poll() {
    {
       std::unique_lock lock{mutex_};
-      runing_ = false;
+      running_ = false;
       cv_.notify_all();
    }
    for (auto& thread : threads_) {
@@ -84,22 +112,35 @@ Poll<SIZE>::~Poll() {
 
 template <std::size_t SIZE>
 bool
-Poll<SIZE>::Dispatch(std::function<void()> func) {
+Poll<SIZE>::Dispatch(std::function<void()>&& func, std::optional<time_point> delay) {
    std::unique_lock lock{mutex_};
-   if (runing_) {
-      auto        queue    = queue_.begin();
-      std::size_t min_size = queue->size();
-
-      for (auto it = std::next(queue); it != queue_.end(); ++it) {
-         if (it->size() < min_size) {
-            queue    = it;
-            min_size = it->size();
-         }
+   if (running_) {
+      if (delay) {
+         delayed_events_.emplace(*delay, std::move(func));
+         next_event_ = std::min(next_event_, delayed_events_.begin()->first);
+      } else {
+         queue_.emplace_back(std::move(func));
       }
-      queue->emplace_back(std::move(func));
-      cv_.notify_all();
+
+      cv_.notify_one();
       return true;
    }
 
    return false;
+}
+
+template <std::size_t SIZE>
+bool
+Poll<SIZE>::Dispatch(std::function<void()>&& func, duration delay) {
+   return Dispatch(std::move(func), std::chrono::steady_clock::now() + delay);
+}
+
+template <std::size_t SIZE>
+std::array<std::thread::id, SIZE>
+Poll<SIZE>::ThreadIds() const {
+   std::array<std::thread::id, SIZE> ids;
+   std::ranges::transform(threads_, ids.begin(), [](const std::jthread& thread) {
+      return thread.get_id();
+   });
+   return ids;
 }

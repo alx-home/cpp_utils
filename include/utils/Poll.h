@@ -25,7 +25,10 @@ SOFTWARE.
 #pragma once
 
 #include <condition_variable>
+#include <coroutine>
 #include <functional>
+#include <map>
+#include <optional>
 #include <string_view>
 
 template <std::size_t SIZE = 10>
@@ -34,13 +37,47 @@ public:
    explicit Poll(std::string_view thread_name);
    virtual ~Poll();
 
-   bool Dispatch(std::function<void()>);
+   using time_point = std::chrono::steady_clock::time_point;
+   bool Dispatch(std::function<void()>&&, std::optional<time_point> delay = std::nullopt);
+   using duration = std::chrono::steady_clock::duration;
+   bool Dispatch(std::function<void()>&&, duration delay);
+
+   std::array<std::thread::id, SIZE> ThreadIds() const;
 
 private:
-   bool                                               runing_{true};
-   std::array<std::list<std::function<void()>>, SIZE> queue_{};
-   std::condition_variable                            cv_{};
-   std::mutex                                         mutex_{};
+   class Dispatcher {
+   public:
+      Dispatcher(Poll& queue, std::optional<time_point> until = std::nullopt)
+         : self_{queue}
+         , until_{until} {}
+
+      bool await_ready() const { return false; }
+      auto await_suspend(std::coroutine_handle<> h) const {
+         self_.Dispatch([h] constexpr { h.resume(); }, until_);
+      }
+      void await_resume() const noexcept(false) {}
+
+      Dispatcher operator()(time_point until) const { return Dispatcher{self_, until}; }
+      Dispatcher operator()(duration delay) const {
+         return Dispatcher{self_, std::chrono::steady_clock::now() + delay};
+      }
+
+   private:
+      Poll&                     self_;
+      std::optional<time_point> until_{std::nullopt};
+   };
+
+public:
+   Dispatcher dispatch_{*this};
+
+private:
+   bool                             running_{true};
+   std::list<std::function<void()>> queue_{};
+   std::condition_variable          cv_{};
+   std::mutex                       mutex_{};
+
+   time_point                                  next_event_{time_point::max()};
+   std::map<time_point, std::function<void()>> delayed_events_{};
 
    std::array<std::jthread, SIZE> threads_;
 };
