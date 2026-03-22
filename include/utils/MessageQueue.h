@@ -32,5 +32,6 @@ public:
    ~MessageQueue() override = default;
 
    using Poll<1>::Dispatch;
+   using Poll<1>::Stop;
    std::thread::id ThreadId() const;
 };

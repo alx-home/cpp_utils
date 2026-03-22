@@ -45,6 +45,8 @@ public:
 
    std::array<std::thread::id, SIZE> ThreadIds() const;
 
+   void Stop();
+
 private:
    template <bool MAIN = true>
    class Dispatcher {
@@ -92,6 +94,7 @@ public:
 
 private:
    bool                             running_{true};
+   bool                             stopping_{false};
    std::list<std::function<void()>> queue_{};
    std::condition_variable          cv_{};
    std::mutex                       mutex_{};

@@ -47,8 +47,8 @@ Poll<SIZE>::Poll(std::string_view thread_name) {
                  // Move delayed events that are due to the main queue
 
                  auto const upper_bound =
-                   running_ ? delayed_events_.upper_bound(std::chrono::steady_clock::now())
-                            : delayed_events_.end();
+                   !stopping_ ? delayed_events_.upper_bound(std::chrono::steady_clock::now())
+                              : delayed_events_.end();
                  for (auto it = delayed_events_.begin(); it != upper_bound;) {
                     auto func = std::move(it->second);
                     queue_.emplace_back(std::move(func));
@@ -105,7 +105,8 @@ template <std::size_t SIZE>
 Poll<SIZE>::~Poll() {
    {
       std::unique_lock lock{mutex_};
-      running_ = false;
+      stopping_ = true;
+      running_  = false;
       cv_.notify_all();
    }
 
@@ -115,11 +116,19 @@ Poll<SIZE>::~Poll() {
 }
 
 template <std::size_t SIZE>
+void
+Poll<SIZE>::Stop() {
+   std::unique_lock lock{mutex_};
+   stopping_ = true;
+   cv_.notify_all();
+}
+
+template <std::size_t SIZE>
 bool
 Poll<SIZE>::Dispatch(std::function<void()>&& func, std::optional<time_point> delay) {
    std::unique_lock lock{mutex_};
    if (running_) {
-      if (delay) {
+      if (delay && !stopping_) {
          delayed_events_.emplace(*delay, std::move(func));
          next_event_ = std::min(next_event_, delayed_events_.begin()->first);
          cv_.notify_all();
