@@ -52,8 +52,8 @@ private:
          , until_{until} {}
 
       bool await_ready() const { return false; }
-      auto await_suspend(std::coroutine_handle<> h) const {
-         self_.Dispatch([h] constexpr { h.resume(); }, until_);
+      bool await_suspend(std::coroutine_handle<> h) const {
+         return !self_.Dispatch([h] constexpr { h.resume(); }, until_);
       }
       void await_resume() const noexcept(false) {}
 
