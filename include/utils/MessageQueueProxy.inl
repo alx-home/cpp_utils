@@ -45,7 +45,7 @@ public:
    ~Proxy() = default;
 
    bool operator()(std::function<void(OBJECT_PUBLIC&)>&& callback) {
-      return details_.MessageQueue::Dispatch(
+      return details_.MessageQueue::Ensure(
         [this, callback = std::move(callback)] constexpr mutable { callback(details_); }
       );
    }
