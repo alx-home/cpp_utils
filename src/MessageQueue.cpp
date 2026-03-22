@@ -33,7 +33,7 @@ MessageQueue::ThreadId() const {
 }
 
 bool
-MessageQueue::Ensure(std::function<void()>&& func) {
+MessageQueue::Ensure(std::function<void()>&& func) const {
    if (std::this_thread::get_id() == ThreadId()) {
       func();
       return true;

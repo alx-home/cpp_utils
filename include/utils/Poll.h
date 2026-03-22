@@ -39,9 +39,9 @@ public:
 
    using time_point = std::chrono::steady_clock::time_point;
    [[nodiscard]] bool
-   Dispatch(std::function<void()>&&, std::optional<time_point> delay = std::nullopt);
+   Dispatch(std::function<void()>&&, std::optional<time_point> delay = std::nullopt) const;
    using duration = std::chrono::steady_clock::duration;
-   [[nodiscard]] bool Dispatch(std::function<void()>&&, duration delay);
+   [[nodiscard]] bool Dispatch(std::function<void()>&&, duration delay) const;
 
    std::array<std::thread::id, SIZE> ThreadIds() const;
 
@@ -93,14 +93,14 @@ public:
    Dispatcher<true> dispatch_{*this};
 
 private:
-   bool                             running_{true};
-   bool                             stopping_{false};
-   std::list<std::function<void()>> queue_{};
-   std::condition_variable          cv_{};
-   std::mutex                       mutex_{};
+   bool                                     running_{true};
+   bool                                     stopping_{false};
+   mutable std::list<std::function<void()>> queue_{};
+   mutable std::condition_variable          cv_{};
+   mutable std::mutex                       mutex_{};
 
-   time_point                                  next_event_{time_point::max()};
-   std::map<time_point, std::function<void()>> delayed_events_{};
+   mutable time_point                                  next_event_{time_point::max()};
+   mutable std::map<time_point, std::function<void()>> delayed_events_{};
 
    std::array<std::jthread, SIZE> threads_;
 };

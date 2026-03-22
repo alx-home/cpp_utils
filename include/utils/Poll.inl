@@ -125,7 +125,7 @@ Poll<SIZE>::Stop() {
 
 template <std::size_t SIZE>
 bool
-Poll<SIZE>::Dispatch(std::function<void()>&& func, std::optional<time_point> delay) {
+Poll<SIZE>::Dispatch(std::function<void()>&& func, std::optional<time_point> delay) const {
    std::unique_lock lock{mutex_};
    if (running_) {
       if (delay && !stopping_) {
@@ -145,7 +145,7 @@ Poll<SIZE>::Dispatch(std::function<void()>&& func, std::optional<time_point> del
 
 template <std::size_t SIZE>
 bool
-Poll<SIZE>::Dispatch(std::function<void()>&& func, duration delay) {
+Poll<SIZE>::Dispatch(std::function<void()>&& func, duration delay) const {
    return Dispatch(std::move(func), std::chrono::steady_clock::now() + delay);
 }
 
