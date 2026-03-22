@@ -66,7 +66,11 @@ private:
          }
       }
 
-      Dispatcher<false> operator()() const { return Dispatcher<false>{self_}; }
+      template <class...>
+         requires(MAIN)
+      Dispatcher<false> operator()() const {
+         return Dispatcher<false>{self_};
+      }
 
    private:
       MessageQueue& self_;
