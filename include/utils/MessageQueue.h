@@ -37,4 +37,42 @@ public:
    [[nodiscard]] bool Ensure(std::function<void()>&& func) const;
 
    std::thread::id ThreadId() const;
+
+private:
+   template <bool MAIN = true>
+   class Dispatcher {
+   public:
+      Dispatcher(MessageQueue& queue)
+         : self_{queue} {}
+
+      template <class...>
+         requires(!MAIN)
+      bool await_ready() const {
+         return false;
+      }
+
+      template <class...>
+         requires(!MAIN)
+      bool await_suspend(std::coroutine_handle<> h) const {
+         success_ = self_.Ensure([h] constexpr { h.resume(); });
+         return success_;
+      }
+
+      template <class...>
+         requires(!MAIN)
+      void await_resume() const noexcept(false) {
+         if (!success_) {
+            throw std::runtime_error("Poll thread stopped while waiting for event");
+         }
+      }
+
+      Dispatcher<false> operator()() const { return Dispatcher<false>{self_}; }
+
+   private:
+      MessageQueue& self_;
+      mutable bool  success_{false};
+   };
+
+public:
+   Dispatcher<true> ensure_{*this};
 };
