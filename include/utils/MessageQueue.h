@@ -48,13 +48,17 @@ private:
       template <class...>
          requires(!MAIN)
       bool await_ready() const {
+         if (std::this_thread::get_id() == self_.ThreadId()) {
+            success_ = true;
+            return true;
+         }
          return false;
       }
 
       template <class...>
          requires(!MAIN)
       bool await_suspend(std::coroutine_handle<> h) const {
-         success_ = self_.Ensure([h] constexpr { h.resume(); });
+         success_ = self_.Dispatch([h] constexpr { h.resume(); });
          return success_;
       }
 
