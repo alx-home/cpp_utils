@@ -38,9 +38,10 @@ public:
    virtual ~Poll();
 
    using time_point = std::chrono::steady_clock::time_point;
-   bool Dispatch(std::function<void()>&&, std::optional<time_point> delay = std::nullopt);
+   [[nodiscard]] bool
+   Dispatch(std::function<void()>&&, std::optional<time_point> delay = std::nullopt);
    using duration = std::chrono::steady_clock::duration;
-   bool Dispatch(std::function<void()>&&, duration delay);
+   [[nodiscard]] bool Dispatch(std::function<void()>&&, duration delay);
 
    std::array<std::thread::id, SIZE> ThreadIds() const;
 

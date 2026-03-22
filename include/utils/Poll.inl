@@ -108,6 +108,7 @@ Poll<SIZE>::~Poll() {
       running_ = false;
       cv_.notify_all();
    }
+
    for (auto& thread : threads_) {
       thread.join();
    }
