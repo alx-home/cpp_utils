@@ -36,7 +36,7 @@ using WPromise = promise::details::WPromise<T>;
 
 namespace utils::queue {
 
-template <class OBJECT>
+template <class OBJECT, class OBJECT_PUBLIC = OBJECT>
 class Proxy {
 public:
    template <class... ARGS>
@@ -44,7 +44,7 @@ public:
       : details_(std::forward<ARGS>(args)...) {}
    ~Proxy() = default;
 
-   bool operator()(std::function<void(OBJECT&)>&& callback) {
+   bool operator()(std::function<void(OBJECT_PUBLIC&)>&& callback) {
       return details_.MessageQueue::Dispatch(
         [this, callback = std::move(callback)] constexpr mutable { callback(details_); }
       );
@@ -52,7 +52,7 @@ public:
 
    template <class T>
       requires(!std::is_void_v<T>)
-   WPromise<T> operator()(std::function<T(OBJECT&)>&& callback);
+   WPromise<T> operator()(std::function<T(OBJECT_PUBLIC&)>&& callback);
 
 private:
    OBJECT details_{};
