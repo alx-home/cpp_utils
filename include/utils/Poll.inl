@@ -59,6 +59,8 @@ Poll<SIZE>::Poll(std::string_view thread_name) {
                  } else {
                     next_event_ = time_point::max();
                  }
+
+                 cv_.notify_all();
               }
 
               if (queue_.size()) {
@@ -118,11 +120,12 @@ Poll<SIZE>::Dispatch(std::function<void()>&& func, std::optional<time_point> del
       if (delay) {
          delayed_events_.emplace(*delay, std::move(func));
          next_event_ = std::min(next_event_, delayed_events_.begin()->first);
+         cv_.notify_all();
       } else {
          queue_.emplace_back(std::move(func));
+         cv_.notify_one();
       }
 
-      cv_.notify_one();
       return true;
    }
 
