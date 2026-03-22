@@ -33,5 +33,8 @@ public:
 
    using Poll<1>::Dispatch;
    using Poll<1>::Stop;
+
+   bool Ensure(std::function<void()>&& func);
+
    std::thread::id ThreadId() const;
 };

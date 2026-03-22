@@ -31,3 +31,13 @@ std::thread::id
 MessageQueue::ThreadId() const {
    return ThreadIds()[0];
 }
+
+bool
+MessageQueue::Ensure(std::function<void()>&& func) {
+   if (std::this_thread::get_id() == ThreadId()) {
+      func();
+      return true;
+   }
+
+   return Dispatch(std::move(func));
+}
