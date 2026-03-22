@@ -39,7 +39,9 @@ namespace utils::queue {
 template <class OBJECT>
 class Proxy {
 public:
-   Proxy()  = default;
+   template <class... ARGS>
+   Proxy(ARGS&&... args)
+      : details_(std::forward<ARGS>(args)...) {}
    ~Proxy() = default;
 
    bool operator()(std::function<void(OBJECT&)>&& callback) {
