@@ -29,6 +29,7 @@ SOFTWARE.
 
 #include <processthreadsapi.h>
 #include <algorithm>
+#include <cassert>
 
 template <std::size_t SIZE>
 Poll<SIZE>::Poll(std::string_view thread_name) {
