@@ -45,30 +45,49 @@ public:
    std::array<std::thread::id, SIZE> ThreadIds() const;
 
 private:
+   template <bool MAIN = true>
    class Dispatcher {
    public:
       Dispatcher(Poll& queue, std::optional<time_point> until = std::nullopt)
          : self_{queue}
          , until_{until} {}
 
-      bool await_ready() const { return false; }
-      bool await_suspend(std::coroutine_handle<> h) const {
-         return !self_.Dispatch([h] constexpr { h.resume(); }, until_);
+      template <class...>
+         requires(!MAIN)
+      bool await_ready() const {
+         return false;
       }
-      void await_resume() const noexcept(false) {}
 
-      Dispatcher operator()(time_point until) const { return Dispatcher{self_, until}; }
-      Dispatcher operator()(duration delay) const {
-         return Dispatcher{self_, std::chrono::steady_clock::now() + delay};
+      template <class...>
+         requires(!MAIN)
+      bool await_suspend(std::coroutine_handle<> h) const {
+         success_ = self_.Dispatch([h] constexpr { h.resume(); }, until_);
+         return success_;
+      }
+
+      template <class...>
+         requires(!MAIN)
+      void await_resume() const noexcept(false) {
+         if (!success_) {
+            throw std::runtime_error("Poll thread stopped while waiting for event");
+         }
+      }
+
+      Dispatcher<false> operator()(std::optional<time_point> until = std::nullopt) const {
+         return Dispatcher<false>{self_, until};
+      }
+      Dispatcher<false> operator()(duration delay) const {
+         return Dispatcher<false>{self_, std::chrono::steady_clock::now() + delay};
       }
 
    private:
       Poll&                     self_;
       std::optional<time_point> until_{std::nullopt};
+      mutable bool              success_{false};
    };
 
 public:
-   Dispatcher dispatch_{*this};
+   Dispatcher<true> dispatch_{*this};
 
 private:
    bool                             running_{true};
