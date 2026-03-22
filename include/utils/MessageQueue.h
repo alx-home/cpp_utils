@@ -48,11 +48,7 @@ private:
       template <class...>
          requires(!MAIN)
       bool await_ready() const {
-         if (std::this_thread::get_id() == self_.ThreadId()) {
-            success_ = true;
-            return true;
-         }
-         return false;
+         return std::this_thread::get_id() == self_.ThreadId();
       }
 
       template <class...>
@@ -74,7 +70,7 @@ private:
 
    private:
       MessageQueue& self_;
-      mutable bool  success_{false};
+      mutable bool  success_{true};
    };
 
 public:
