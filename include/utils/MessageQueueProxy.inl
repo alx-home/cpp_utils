@@ -44,7 +44,7 @@ public:
       : details_(std::forward<ARGS>(args)...) {}
    ~Proxy() = default;
 
-   bool operator()(std::function<void(OBJECT_PUBLIC&)>&& callback) {
+   [[nodiscard]] bool operator()(std::function<void(OBJECT_PUBLIC&)>&& callback) {
       return details_.MessageQueue::Ensure(
         [this, callback = std::move(callback)] constexpr mutable { callback(details_); }
       );
