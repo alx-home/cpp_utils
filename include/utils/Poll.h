@@ -34,13 +34,14 @@ SOFTWARE.
 template <std::size_t SIZE = 10>
 class Poll {
 public:
+   using time_point = std::chrono::steady_clock::time_point;
+   using duration   = std::chrono::steady_clock::duration;
+
    explicit Poll(std::string_view thread_name);
    virtual ~Poll();
 
-   using time_point = std::chrono::steady_clock::time_point;
    [[nodiscard]] bool
    Dispatch(std::function<void()>&&, std::optional<time_point> delay = std::nullopt) const;
-   using duration = std::chrono::steady_clock::duration;
    [[nodiscard]] bool Dispatch(std::function<void()>&&, duration delay) const;
 
    std::array<std::thread::id, SIZE> ThreadIds() const;
@@ -64,17 +65,15 @@ private:
       template <class...>
          requires(!MAIN)
       bool await_suspend(std::coroutine_handle<> h) const {
-         success_ = self_.Dispatch([h] constexpr { h.resume(); }, until_);
-         return success_;
+         if (!self_.Dispatch([h] constexpr { h.resume(); }, until_)) {
+            throw std::runtime_error("Failed to dispatch coroutine: Poll is stopped");
+         }
+         return true;
       }
 
       template <class...>
          requires(!MAIN)
-      void await_resume() const noexcept(false) {
-         if (!success_) {
-            throw std::runtime_error("Poll thread stopped while waiting for event");
-         }
-      }
+      void await_resume() const noexcept(false) {}
 
       template <class...>
          requires(MAIN)
@@ -91,7 +90,6 @@ private:
    private:
       Poll&                     self_;
       std::optional<time_point> until_{std::nullopt};
-      mutable bool              success_{false};
    };
 
 public:
