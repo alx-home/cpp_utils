@@ -60,7 +60,7 @@ private:
 
       template <class...>
          requires(!MAIN)
-      bool await_suspend(std::coroutine_handle<> h) const {
+      bool await_suspend(std::coroutine_handle<> h) const noexcept(!THROWS) {
          if constexpr (THROWS) {
             self_.Dispatch([h] constexpr { h.resume(); });
             return true;
@@ -74,7 +74,7 @@ private:
 
       template <class...>
          requires(!MAIN)
-      void await_resume() const noexcept(false) {}
+      void await_resume() const noexcept {}
 
       template <class...>
          requires(MAIN)

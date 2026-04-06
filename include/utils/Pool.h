@@ -100,7 +100,7 @@ private:
 
       template <class...>
          requires(!MAIN)
-      void await_resume() const noexcept(false) {}
+      void await_resume() const noexcept {}
 
       template <class...>
          requires(MAIN)
