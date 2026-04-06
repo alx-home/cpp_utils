@@ -62,23 +62,19 @@ private:
          requires(!MAIN)
       bool await_suspend(std::coroutine_handle<> h) const {
          if constexpr (THROWS) {
-            success_ = false;
             self_.Dispatch([h] constexpr { h.resume(); });
-            success_ = true;
             return true;
          } else {
-            success_ = self_.Dispatch([h] constexpr { h.resume(); });
-            return success_;
+            if (!self_.Dispatch([h] constexpr { h.resume(); })) {
+               throw QueueStopped(self_.name_);
+            }
+            return true;
          }
       }
 
       template <class...>
          requires(!MAIN)
-      void await_resume() const noexcept(false) {
-         if (!success_) {
-            throw std::runtime_error("Pool thread stopped while waiting for event");
-         }
-      }
+      void await_resume() const noexcept(false) {}
 
       template <class...>
          requires(MAIN)
@@ -88,7 +84,6 @@ private:
 
    private:
       MessageQueue& self_;
-      mutable bool  success_{true};
    };
 
 public:
