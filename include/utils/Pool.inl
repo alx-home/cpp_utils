@@ -24,15 +24,16 @@ SOFTWARE.
 
 #pragma once
 
-#include "utils/Poll.h"
+#include "utils/Pool.h"
 #include "utils/String.h"
 
 #include <processthreadsapi.h>
 #include <algorithm>
 #include <cassert>
 
-template <std::size_t SIZE>
-Poll<SIZE>::Poll(std::string_view thread_name) {
+template <bool THROWS, std::size_t SIZE>
+Pool<THROWS, SIZE>::Pool(std::string_view thread_name)
+   : name_{thread_name} {
    for (std::size_t i = 0; i < SIZE; ++i) {
       threads_[i] = std::jthread{
         [this](std::string&& thread_name) constexpr {
@@ -101,8 +102,8 @@ Poll<SIZE>::Poll(std::string_view thread_name) {
    }
 }
 
-template <std::size_t SIZE>
-Poll<SIZE>::~Poll() {
+template <bool THROWS, std::size_t SIZE>
+Pool<THROWS, SIZE>::~Pool() {
    {
       std::unique_lock lock{mutex_};
       stopping_ = true;
@@ -115,17 +116,20 @@ Poll<SIZE>::~Poll() {
    }
 }
 
-template <std::size_t SIZE>
+template <bool THROWS, std::size_t SIZE>
 void
-Poll<SIZE>::Stop() {
+Pool<THROWS, SIZE>::Stop() {
    std::unique_lock lock{mutex_};
    stopping_ = true;
    cv_.notify_all();
 }
 
-template <std::size_t SIZE>
+template <bool THROWS, std::size_t SIZE>
+template <class...>
+   requires(!THROWS)
 bool
-Poll<SIZE>::Dispatch(std::function<void()>&& func, std::optional<time_point> delay) const {
+Pool<THROWS, SIZE>::Dispatch(std::function<void()>&& func, std::optional<time_point> delay)
+  const noexcept {
    std::unique_lock lock{mutex_};
    if (running_) {
       if (delay && !stopping_) {
@@ -143,15 +147,48 @@ Poll<SIZE>::Dispatch(std::function<void()>&& func, std::optional<time_point> del
    return false;
 }
 
-template <std::size_t SIZE>
+template <bool THROWS, std::size_t SIZE>
+template <class...>
+   requires(THROWS)
+void
+Pool<THROWS, SIZE>::Dispatch(std::function<void()>&& func, std::optional<time_point> delay) const
+  noexcept(false) {
+   std::unique_lock lock{mutex_};
+   if (running_) {
+      if (delay && !stopping_) {
+         delayed_events_.emplace(*delay, std::move(func));
+         next_event_ = std::min(next_event_, delayed_events_.begin()->first);
+         cv_.notify_all();
+      } else {
+         queue_.emplace_back(std::move(func));
+         cv_.notify_one();
+      }
+
+      return;
+   }
+
+   throw QueueStopped(name_);
+}
+
+template <bool THROWS, std::size_t SIZE>
+template <class...>
+   requires(!THROWS)
 bool
-Poll<SIZE>::Dispatch(std::function<void()>&& func, duration delay) const {
+Pool<THROWS, SIZE>::Dispatch(std::function<void()>&& func, duration delay) const noexcept {
    return Dispatch(std::move(func), std::chrono::steady_clock::now() + delay);
 }
 
-template <std::size_t SIZE>
+template <bool THROWS, std::size_t SIZE>
+template <class...>
+   requires(THROWS)
+void
+Pool<THROWS, SIZE>::Dispatch(std::function<void()>&& func, duration delay) const noexcept(false) {
+   return Dispatch(std::move(func), std::chrono::steady_clock::now() + delay);
+}
+
+template <bool THROWS, std::size_t SIZE>
 std::array<std::thread::id, SIZE>
-Poll<SIZE>::ThreadIds() const {
+Pool<THROWS, SIZE>::ThreadIds() const {
    std::array<std::thread::id, SIZE> ids;
    std::ranges::transform(threads_, ids.begin(), [](const std::jthread& thread) {
       return thread.get_id();

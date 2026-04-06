@@ -4,10 +4,11 @@ project(alx-home_cpp_utils LANGUAGES CXX)
 
 win32_library(TARGET_NAME alx-home_cpp_utils
   FILES
-    src/String.cpp
-    src/Nonce.cpp
-    src/MessageQueue.cpp
     src/encryption.cpp
+    src/MessageQueue.cpp
+    src/Nonce.cpp
+    src/Pool.cpp
+    src/String.cpp
 )
 add_library(alx-home::cpp_utils ALIAS alx-home_cpp_utils)
 target_link_libraries(alx-home_cpp_utils PRIVATE crypt32)

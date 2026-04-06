@@ -24,17 +24,24 @@ SOFTWARE.
 
 #pragma once
 
-#include "Poll.h"
+#include "Pool.h"
 
-class MessageQueue : public Poll<1> {
+template <bool THROWS = false>
+class MessageQueue : public Pool<THROWS, 1> {
 public:
-   using Poll<1>::Poll;
+   using Pool<THROWS, 1>::Pool;
    ~MessageQueue() override = default;
 
-   using Poll<1>::Dispatch;
-   using Poll<1>::Stop;
+   using Pool<THROWS, 1>::Dispatch;
+   using Pool<THROWS, 1>::Stop;
 
-   [[nodiscard]] bool Ensure(std::function<void()>&& func) const;
+   template <class...>
+      requires(!THROWS)
+   [[nodiscard]] bool Ensure(std::function<void()>&& func) const noexcept;
+
+   template <class...>
+      requires(THROWS)
+   void Ensure(std::function<void()>&& func) const noexcept(false);
 
    std::thread::id ThreadId() const;
 
@@ -54,15 +61,22 @@ private:
       template <class...>
          requires(!MAIN)
       bool await_suspend(std::coroutine_handle<> h) const {
-         success_ = self_.Dispatch([h] constexpr { h.resume(); });
-         return success_;
+         if constexpr (THROWS) {
+            success_ = false;
+            self_.Dispatch([h] constexpr { h.resume(); });
+            success_ = true;
+            return true;
+         } else {
+            success_ = self_.Dispatch([h] constexpr { h.resume(); });
+            return success_;
+         }
       }
 
       template <class...>
          requires(!MAIN)
       void await_resume() const noexcept(false) {
          if (!success_) {
-            throw std::runtime_error("Poll thread stopped while waiting for event");
+            throw std::runtime_error("Pool thread stopped while waiting for event");
          }
       }
 

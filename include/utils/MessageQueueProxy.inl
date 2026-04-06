@@ -28,6 +28,7 @@ SOFTWARE.
 #include <functional>
 #include <stdexcept>
 #include <thread>
+#include <type_traits>
 
 namespace promise::details {
 template <class>
@@ -47,10 +48,17 @@ public:
       : details_(std::forward<ARGS>(args)...) {}
    ~Proxy() = default;
 
-   [[nodiscard]] bool operator()(std::function<void(OBJECT_PUBLIC&)>&& callback) {
-      return details_.MessageQueue::Ensure(
-        [this, callback = std::move(callback)] constexpr mutable { callback(details_); }
-      );
+   [[nodiscard]] auto operator()(std::function<void(OBJECT_PUBLIC&)>&& callback) noexcept {
+      using Return = decltype(details_.MessageQueue::Ensure([] constexpr {}));
+      if constexpr (std::is_void_v<Return>) {
+         details_.MessageQueue::Ensure([this, callback = std::move(callback)] constexpr mutable {
+            callback(details_);
+         });
+      } else {
+         return details_.MessageQueue::Ensure(
+           [this, callback = std::move(callback)] constexpr mutable { callback(details_); }
+         );
+      }
    }
 
    template <class T>

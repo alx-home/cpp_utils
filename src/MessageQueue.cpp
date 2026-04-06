@@ -24,16 +24,21 @@ SOFTWARE.
 
 #include "utils/MessageQueue.h"
 
+#include <Windows.h>
 #include <processthreadsapi.h>
 #include <cassert>
 
+template <bool THROWS>
 std::thread::id
-MessageQueue::ThreadId() const {
-   return ThreadIds()[0];
+MessageQueue<THROWS>::ThreadId() const {
+   return Pool<THROWS, 1>::ThreadIds()[0];
 }
 
+template <bool THROWS>
+template <class...>
+   requires(!THROWS)
 bool
-MessageQueue::Ensure(std::function<void()>&& func) const {
+MessageQueue<THROWS>::Ensure(std::function<void()>&& func) const noexcept {
    if (std::this_thread::get_id() == ThreadId()) {
       func();
       return true;
@@ -41,3 +46,22 @@ MessageQueue::Ensure(std::function<void()>&& func) const {
 
    return Dispatch(std::move(func));
 }
+
+template <bool THROWS>
+template <class...>
+   requires(THROWS)
+void
+MessageQueue<THROWS>::Ensure(std::function<void()>&& func) const noexcept(false) {
+   if (std::this_thread::get_id() == ThreadId()) {
+      func();
+      return;
+   }
+
+   Dispatch(std::move(func));
+}
+
+template class MessageQueue<false>;
+template class MessageQueue<true>;
+
+template void MessageQueue<true>::Ensure<>(std::function<void()>&&) const noexcept(false);
+template bool MessageQueue<false>::Ensure<>(std::function<void()>&&) const noexcept;

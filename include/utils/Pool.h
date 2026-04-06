@@ -24,25 +24,47 @@ SOFTWARE.
 
 #pragma once
 
+#include <array>
 #include <condition_variable>
 #include <coroutine>
 #include <functional>
 #include <map>
 #include <optional>
 #include <string_view>
+#include <thread>
 
-template <std::size_t SIZE = 10>
-class Poll {
+class QueueStopped : public std::runtime_error {
+public:
+   QueueStopped(std::string_view name)
+      : std::runtime_error(std::string("Pool '") + std::string{name} + "' is stopped!") {}
+};
+
+template <bool THROWS = false, std::size_t SIZE = 10>
+class Pool {
 public:
    using time_point = std::chrono::steady_clock::time_point;
    using duration   = std::chrono::steady_clock::duration;
 
-   explicit Poll(std::string_view thread_name);
-   virtual ~Poll();
+   explicit Pool(std::string_view thread_name);
+   virtual ~Pool();
 
+   template <class...>
+      requires(!THROWS)
    [[nodiscard]] bool
-   Dispatch(std::function<void()>&&, std::optional<time_point> delay = std::nullopt) const;
-   [[nodiscard]] bool Dispatch(std::function<void()>&&, duration delay) const;
+   Dispatch(std::function<void()>&&, std::optional<time_point> delay = std::nullopt) const noexcept;
+
+   template <class...>
+      requires(!THROWS)
+   [[nodiscard]] bool Dispatch(std::function<void()>&&, duration delay) const noexcept;
+
+   template <class...>
+      requires(THROWS)
+   void Dispatch(std::function<void()>&&, std::optional<time_point> delay = std::nullopt) const
+     noexcept(false);
+
+   template <class...>
+      requires(THROWS)
+   void Dispatch(std::function<void()>&&, duration delay) const noexcept(false);
 
    std::array<std::thread::id, SIZE> ThreadIds() const;
 
@@ -52,7 +74,7 @@ private:
    template <bool MAIN = true>
    class Dispatcher {
    public:
-      Dispatcher(Poll& queue, std::optional<time_point> until = std::nullopt)
+      Dispatcher(Pool& queue, std::optional<time_point> until = std::nullopt)
          : self_{queue}
          , until_{until} {}
 
@@ -64,11 +86,16 @@ private:
 
       template <class...>
          requires(!MAIN)
-      bool await_suspend(std::coroutine_handle<> h) const {
-         if (!self_.Dispatch([h] constexpr { h.resume(); }, until_)) {
-            throw std::runtime_error("Failed to dispatch coroutine: Poll is stopped");
+      bool await_suspend(std::coroutine_handle<> h) const noexcept(!THROWS) {
+         if constexpr (THROWS) {
+            self_.Dispatch([h] constexpr { h.resume(); }, until_);
+            return true;
+         } else {
+            if (!self_.Dispatch([h] constexpr { h.resume(); }, until_)) {
+               throw QueueStopped(self_.name_);
+            }
+            return true;
          }
-         return true;
       }
 
       template <class...>
@@ -88,7 +115,7 @@ private:
       }
 
    private:
-      Poll&                     self_;
+      Pool&                     self_;
       std::optional<time_point> until_{std::nullopt};
    };
 
@@ -96,6 +123,7 @@ public:
    Dispatcher<true> dispatch_{*this};
 
 private:
+   std::string                              name_{};
    bool                                     running_{true};
    bool                                     stopping_{false};
    mutable std::list<std::function<void()>> queue_{};
@@ -107,5 +135,3 @@ private:
 
    std::array<std::jthread, SIZE> threads_;
 };
-
-#include "Poll.inl"
