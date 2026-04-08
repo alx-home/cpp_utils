@@ -44,48 +44,4 @@ public:
    void Ensure(std::function<void()>&& func) const noexcept(false);
 
    std::thread::id ThreadId() const;
-
-private:
-   template <bool MAIN = true>
-   class Dispatcher {
-   public:
-      Dispatcher(MessageQueue& queue)
-         : self_{queue} {}
-
-      template <class...>
-         requires(!MAIN)
-      bool await_ready() const {
-         return std::this_thread::get_id() == self_.ThreadId();
-      }
-
-      template <class...>
-         requires(!MAIN)
-      bool await_suspend(std::coroutine_handle<> h) const noexcept(!THROWS) {
-         if constexpr (THROWS) {
-            self_.Dispatch([h] constexpr { h.resume(); });
-            return true;
-         } else {
-            if (!self_.Dispatch([h] constexpr { h.resume(); })) {
-               throw QueueStopped(self_.name_);
-            }
-            return true;
-         }
-      }
-
-      template <class...>
-         requires(!MAIN)
-      void await_resume() const noexcept {}
-
-      template <class...>
-         requires(MAIN)
-      Dispatcher<false> operator()() const {
-         return Dispatcher<false>{self_};
-      }
-
-   private:
-      MessageQueue& self_;
-   };
-
-public:
-   Dispatcher<true> ensure_{*this};
 };
