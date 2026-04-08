@@ -134,8 +134,11 @@ Pool<THROWS, SIZE>::Dispatch(std::function<void()>&& func, std::optional<time_po
    if (running_) {
       if (delay && !stopping_) {
          delayed_events_.emplace(*delay, std::move(func));
-         next_event_ = std::min(next_event_, delayed_events_.begin()->first);
-         cv_.notify_all();
+         auto const next_event = std::min(next_event_, delayed_events_.begin()->first);
+         if (next_event != next_event_) {
+            next_event_ = next_event;
+            cv_.notify_all();
+         }
       } else {
          queue_.emplace_back(std::move(func));
          cv_.notify_one();
