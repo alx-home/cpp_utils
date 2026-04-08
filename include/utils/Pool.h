@@ -48,6 +48,8 @@ public:
    explicit Pool(std::string_view thread_name);
    virtual ~Pool();
 
+   std::string_view GetName() const noexcept { return name_; }
+
    template <class...>
       requires(!THROWS)
    [[nodiscard]] bool
@@ -69,57 +71,6 @@ public:
    std::array<std::thread::id, SIZE> ThreadIds() const;
 
    void Stop();
-
-private:
-   template <bool MAIN = true>
-   class Dispatcher {
-   public:
-      Dispatcher(Pool& queue, std::optional<time_point> until = std::nullopt)
-         : self_{queue}
-         , until_{until} {}
-
-      template <class...>
-         requires(!MAIN)
-      bool await_ready() const {
-         return false;
-      }
-
-      template <class...>
-         requires(!MAIN)
-      bool await_suspend(std::coroutine_handle<> h) const noexcept(!THROWS) {
-         if constexpr (THROWS) {
-            self_.Dispatch([h] constexpr { h.resume(); }, until_);
-            return true;
-         } else {
-            if (!self_.Dispatch([h] constexpr { h.resume(); }, until_)) {
-               throw QueueStopped(self_.name_);
-            }
-            return true;
-         }
-      }
-
-      template <class...>
-         requires(!MAIN)
-      void await_resume() const noexcept {}
-
-      template <class...>
-         requires(MAIN)
-      Dispatcher<false> operator()(std::optional<time_point> until = std::nullopt) const {
-         return Dispatcher<false>{self_, until};
-      }
-
-      template <class...>
-         requires(MAIN)
-      Dispatcher<false> operator()(duration delay) const {
-         return Dispatcher<false>{self_, std::chrono::steady_clock::now() + delay};
-      }
-
-      Dispatcher<true> Dispatch() const { return {*this}; };
-
-   private:
-      Pool&                     self_;
-      std::optional<time_point> until_{std::nullopt};
-   };
 
 private:
    std::string                              name_{};
