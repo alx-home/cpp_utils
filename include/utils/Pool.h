@@ -114,13 +114,12 @@ private:
          return Dispatcher<false>{self_, std::chrono::steady_clock::now() + delay};
       }
 
+      Dispatcher<true> Dispatch() const { return {*this}; };
+
    private:
       Pool&                     self_;
       std::optional<time_point> until_{std::nullopt};
    };
-
-public:
-   Dispatcher<true> dispatch_{*this};
 
 private:
    std::string                              name_{};
