@@ -104,16 +104,10 @@ Pool<THROWS, SIZE>::Pool(std::string_view thread_name)
 
 template <bool THROWS, std::size_t SIZE>
 Pool<THROWS, SIZE>::~Pool() {
-   {
-      std::unique_lock lock{mutex_};
-      stopping_ = true;
-      running_  = false;
-      cv_.notify_all();
-   }
-
-   for (auto& thread : threads_) {
-      thread.join();
-   }
+   std::unique_lock lock{mutex_};
+   stopping_ = true;
+   running_  = false;
+   cv_.notify_all();
 }
 
 template <bool THROWS, std::size_t SIZE>

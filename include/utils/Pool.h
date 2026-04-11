@@ -74,8 +74,8 @@ public:
 
 private:
    std::string                              name_{};
-   bool                                     running_{true};
-   bool                                     stopping_{false};
+   std::atomic<bool>                        running_{true};
+   std::atomic<bool>                        stopping_{false};
    mutable std::list<std::function<void()>> queue_{};
    mutable std::condition_variable          cv_{};
    mutable std::mutex                       mutex_{};
