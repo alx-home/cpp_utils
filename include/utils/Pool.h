@@ -26,7 +26,6 @@ SOFTWARE.
 
 #include <array>
 #include <condition_variable>
-#include <coroutine>
 #include <functional>
 #include <map>
 #include <optional>
@@ -77,11 +76,19 @@ private:
    std::atomic<bool>                        running_{true};
    std::atomic<bool>                        stopping_{false};
    mutable std::list<std::function<void()>> queue_{};
-   mutable std::condition_variable          cv_{};
-   mutable std::mutex                       mutex_{};
+
+   mutable std::condition_variable cv_{};
+   mutable std::mutex              mutex_{};
 
    mutable time_point                                  next_event_{time_point::max()};
    mutable std::map<time_point, std::function<void()>> delayed_events_{};
 
-   std::array<std::jthread, SIZE> threads_;
+   struct Threads {
+      mutable std::condition_variable dispatch_cv_{};
+      std::jthread                    dispatcher_{};
+      std::array<std::jthread, SIZE>  workers_{};
+      std::atomic<std::size_t>        done_{0};
+   };
+
+   std::conditional_t<SIZE == 1, std::jthread, Threads> threads_{};
 };

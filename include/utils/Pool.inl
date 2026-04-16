@@ -33,72 +33,144 @@ SOFTWARE.
 
 template <bool THROWS, std::size_t SIZE>
 Pool<THROWS, SIZE>::Pool(std::string_view thread_name)
-   : name_{thread_name} {
-   for (std::size_t i = 0; i < SIZE; ++i) {
-      threads_[i] = std::jthread{
-        [this](std::string&& thread_name) constexpr {
-           SetThreadDescription(
-             GetCurrentThread(), utils::WidenString(std::move(thread_name)).c_str()
-           );
+   : name_{thread_name}
+   , threads_{[this] constexpr {
+      if constexpr (SIZE == 1) {
+         return std::jthread{[this]() constexpr {
+            SetThreadDescription(GetCurrentThread(), utils::WidenString(name_).c_str());
 
-           while (true) {
-              std::unique_lock lock{mutex_};
+            while (true) {
+               std::unique_lock lock{mutex_};
 
-              if (delayed_events_.size()) {
-                 // Move delayed events that are due to the main queue
+               if (delayed_events_.size()) {
+                  // Move delayed events that are due to the main queue
 
-                 auto const upper_bound =
-                   !stopping_ ? delayed_events_.upper_bound(std::chrono::steady_clock::now())
-                              : delayed_events_.end();
-                 for (auto it = delayed_events_.begin(); it != upper_bound;) {
-                    auto func = std::move(it->second);
-                    queue_.emplace_back(std::move(func));
-                    it = delayed_events_.erase(it);
+                  auto const upper_bound =
+                    !stopping_ ? delayed_events_.upper_bound(std::chrono::steady_clock::now())
+                               : delayed_events_.end();
+                  for (auto it = delayed_events_.begin(); it != upper_bound;) {
+                     auto func = std::move(it->second);
+                     queue_.emplace_back(std::move(func));
+                     it = delayed_events_.erase(it);
+                  }
+
+                  if (!delayed_events_.empty()) {
+                     next_event_ = std::min(next_event_, delayed_events_.begin()->first);
+                  } else {
+                     next_event_ = time_point::max();
+                  }
+
+                  cv_.notify_all();
+               }
+
+               if (queue_.size()) {
+                  auto elem = std::move(queue_.front());
+                  queue_.pop_front();
+                  lock.unlock();
+
+                  elem();
+               } else if (running_) {
+#ifndef NDEBUG
+                  SetThreadDescription(
+                    GetCurrentThread(), (utils::WidenString(name_) + L" IDL").c_str()
+                  );
+#endif
+                  cv_.wait_until(lock, next_event_);
+#ifndef NDEBUG
+                  SetThreadDescription(GetCurrentThread(), utils::WidenString(name_).c_str());
+#endif
+               } else {
+                  assert(delayed_events_.empty());
+                  break;
+               }
+            }
+         }};
+      } else {
+         return Threads{
+           .dispatcher_ = std::jthread{[this] constexpr {
+              // Set the description of the current thread to the pool name
+              SetThreadDescription(GetCurrentThread(), utils::WidenString(name_).c_str());
+
+              while (true) {
+                 std::unique_lock lock{mutex_};
+
+                 if (delayed_events_.size()) {
+                    // Move delayed events that are due to the main queue
+
+                    auto const upper_bound =
+                      !stopping_ ? delayed_events_.upper_bound(std::chrono::steady_clock::now())
+                                 : delayed_events_.end();
+                    for (auto it = delayed_events_.begin(); it != upper_bound;) {
+                       auto func = std::move(it->second);
+                       queue_.emplace_back(std::move(func));
+                       cv_.notify_one();
+                       it = delayed_events_.erase(it);
+                    }
+
+                    if (!delayed_events_.empty()) {
+                       next_event_ = std::min(next_event_, delayed_events_.begin()->first);
+                    } else {
+                       next_event_ = time_point::max();
+                    }
                  }
 
-                 if (!delayed_events_.empty()) {
-                    next_event_ = std::min(next_event_, delayed_events_.begin()->first);
+                 if (threads_.done_ == SIZE) {
+                    assert(delayed_events_.empty() && queue_.empty() && !running_);
+                    break;
                  } else {
-                    next_event_ = time_point::max();
+                    threads_.dispatch_cv_.wait_until(lock, next_event_);
                  }
-
-                 cv_.notify_all();
               }
+           }}
+         };
+      }
+   }()} {
 
-              if (queue_.size()) {
-                 auto elem = std::move(queue_.front());
-                 queue_.pop_front();
-                 lock.unlock();
+   if constexpr (SIZE > 1) {
+      for (std::size_t i = 0; i < SIZE; ++i) {
+         threads_.workers_[i] = std::jthread{
+           [this](std::string&& thread_name) constexpr {
+              SetThreadDescription(GetCurrentThread(), utils::WidenString(thread_name).c_str());
 
-                 elem();
-              } else if (running_) {
+              while (true) {
+                 std::unique_lock lock{mutex_};
+
+                 if (queue_.size()) {
+                    auto elem = std::move(queue_.front());
+                    queue_.pop_front();
+                    lock.unlock();
+
+                    elem();
+                 } else if (running_) {
 #ifndef NDEBUG
-                 SetThreadDescription(
-                   GetCurrentThread(),
-                   (utils::WidenString(std::move(thread_name)) + L" IDL").c_str()
-                 );
+                    SetThreadDescription(
+                      GetCurrentThread(), (utils::WidenString(thread_name) + L" IDL").c_str()
+                    );
 #endif
-                 cv_.wait_until(lock, next_event_);
+                    cv_.wait(lock);
 #ifndef NDEBUG
-                 SetThreadDescription(
-                   GetCurrentThread(), utils::WidenString(std::move(thread_name)).c_str()
-                 );
+                    SetThreadDescription(
+                      GetCurrentThread(), utils::WidenString(thread_name).c_str()
+                    );
 #endif
+                 } else if (delayed_events_.empty()) {
+                    if (++threads_.done_ == SIZE) {
+                       threads_.dispatch_cv_.notify_one();
+                    }
+                    break;
+                 }
+              }
+           },
+           [i, &thread_name] constexpr -> std::string {
+              if constexpr (SIZE == 1) {
+                 auto const _{i};
+                 return std::string{thread_name};
               } else {
-                 assert(delayed_events_.empty());
-                 break;
+                 return std::string{thread_name} + " #" + std::to_string(i);
               }
-           }
-        },
-        [i, &thread_name] constexpr -> std::string {
-           if constexpr (SIZE == 1) {
-              auto const _{i};
-              return std::string{thread_name};
-           } else {
-              return std::string{thread_name} + " #" + std::to_string(i);
-           }
-        }()
-      };
+           }()
+         };
+      }
    }
 }
 
@@ -107,7 +179,13 @@ Pool<THROWS, SIZE>::~Pool() {
    std::unique_lock lock{mutex_};
    stopping_ = true;
    running_  = false;
-   cv_.notify_all();
+
+   if constexpr (SIZE == 1) {
+      cv_.notify_all();
+   } else {
+      cv_.notify_all();
+      threads_.dispatch_cv_.notify_one();
+   }
 }
 
 template <bool THROWS, std::size_t SIZE>
@@ -115,7 +193,13 @@ void
 Pool<THROWS, SIZE>::Stop() {
    std::unique_lock lock{mutex_};
    stopping_ = true;
-   cv_.notify_all();
+
+   if constexpr (SIZE == 1) {
+      cv_.notify_all();
+   } else {
+      cv_.notify_all();
+      threads_.dispatch_cv_.notify_one();
+   }
 }
 
 template <bool THROWS, std::size_t SIZE>
@@ -131,7 +215,12 @@ Pool<THROWS, SIZE>::Dispatch(std::function<void()>&& func, std::optional<time_po
          auto const next_event = std::min(next_event_, delayed_events_.begin()->first);
          if (next_event != next_event_) {
             next_event_ = next_event;
-            cv_.notify_all();
+
+            if constexpr (SIZE == 1) {
+               cv_.notify_one();
+            } else {
+               threads_.dispatch_cv_.notify_one();
+            }
          }
       } else {
          queue_.emplace_back(std::move(func));
@@ -155,7 +244,12 @@ Pool<THROWS, SIZE>::Dispatch(std::function<void()>&& func, std::optional<time_po
       if (delay && !stopping_) {
          delayed_events_.emplace(*delay, std::move(func));
          next_event_ = std::min(next_event_, delayed_events_.begin()->first);
-         cv_.notify_all();
+
+         if constexpr (SIZE == 1) {
+            cv_.notify_one();
+         } else {
+            threads_.dispatch_cv_.notify_one();
+         }
       } else {
          queue_.emplace_back(std::move(func));
          cv_.notify_one();
@@ -187,8 +281,12 @@ template <bool THROWS, std::size_t SIZE>
 std::array<std::thread::id, SIZE>
 Pool<THROWS, SIZE>::ThreadIds() const {
    std::array<std::thread::id, SIZE> ids;
-   std::ranges::transform(threads_, ids.begin(), [](const std::jthread& thread) {
-      return thread.get_id();
-   });
+   if constexpr (SIZE == 1) {
+      ids[0] = threads_.get_id();
+   } else {
+      for (std::size_t i = 0; i < SIZE; ++i) {
+         ids[i] = threads_.workers_[i].get_id();
+      }
+   }
    return ids;
 }

@@ -40,7 +40,6 @@ SOFTWARE.
      const noexcept;
 
 #define POOL_IMPL_10(BASE) \
-   POOL_IMPL((BASE) + 0)   \
    POOL_IMPL((BASE) + 1)   \
    POOL_IMPL((BASE) + 2)   \
    POOL_IMPL((BASE) + 3)   \
@@ -49,7 +48,8 @@ SOFTWARE.
    POOL_IMPL((BASE) + 6)   \
    POOL_IMPL((BASE) + 7)   \
    POOL_IMPL((BASE) + 8)   \
-   POOL_IMPL((BASE) + 9)
+   POOL_IMPL((BASE) + 9)   \
+   POOL_IMPL((BASE) + 10)
 
 #define POOL_IMPL_100(BASE)  \
    POOL_IMPL_10((BASE) + 0)  \
@@ -65,7 +65,6 @@ SOFTWARE.
 
 POOL_IMPL_100(0)
 POOL_IMPL_100(100)
-POOL_IMPL(200)
 
 #undef POOL_IMPL_100
 #undef POOL_IMPL_10
