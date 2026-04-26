@@ -69,11 +69,10 @@ public:
       return std::this_thread::get_id() == details_.MessageQueue::ThreadId();
    }
 
-   bool await_suspend(std::coroutine_handle<> h) const {
+   void await_suspend(std::coroutine_handle<> h) const {
       if (!details_.MessageQueue::Ensure([h] constexpr { h.resume(); })) {
          throw std::runtime_error("Failed to dispatch coroutine: MessageQueue is stopped");
       }
-      return true;
    }
 
    OBJECT_PUBLIC& await_resume() noexcept(false) {
