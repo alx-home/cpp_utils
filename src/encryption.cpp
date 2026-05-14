@@ -21,23 +21,26 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+#ifdef _WIN32
+#   include "cpp_utils/encryption.h"
 
-#include "cpp_utils/encryption.h"
-
-#include <windows.h>
-#include <wincrypt.h>
-#include <string>
+#   include <string>
+#   include <wincrypt.h>
+#   include <windows.h>
 
 namespace cpp_utils {
 
 /**
- * @brief Encrypts a string using Windows CryptoAPI with optional password entropy.
+ * @brief Encrypts a string using Windows CryptoAPI with optional password
+ * entropy.
  *
- * Uses CryptProtectData to securely encrypt the input. The password is used as additional entropy.
- * Only the same Windows user (and password, if provided) can decrypt the data.
+ * Uses CryptProtectData to securely encrypt the input. The password is used as
+ * additional entropy. Only the same Windows user (and password, if provided)
+ * can decrypt the data.
  *
  * @param input    The plaintext data to encrypt.
- * @param password Optional password/entropy to strengthen encryption (can be empty).
+ * @param password Optional password/entropy to strengthen encryption (can be
+ * empty).
  * @return         Pair of (success, encrypted data as string).
  */
 std::pair<bool, std::string>
@@ -62,13 +65,16 @@ Encrypt(std::string_view input, std::string_view password) {
 }
 
 /**
- * @brief Decrypts a string using Windows CryptoAPI with optional password entropy.
+ * @brief Decrypts a string using Windows CryptoAPI with optional password
+ * entropy.
  *
- * Uses CryptUnprotectData to securely decrypt the input. The password must match the one used for
- * encryption. Only the same Windows user (and password, if provided) can decrypt the data.
+ * Uses CryptUnprotectData to securely decrypt the input. The password must
+ * match the one used for encryption. Only the same Windows user (and password,
+ * if provided) can decrypt the data.
  *
  * @param input    The encrypted data to decrypt.
- * @param password Optional password/entropy used during encryption (must match).
+ * @param password Optional password/entropy used during encryption (must
+ * match).
  * @return         Pair of (success, decrypted plaintext as string).
  */
 std::pair<bool, std::string>
@@ -93,3 +99,4 @@ Decrypt(std::string_view input, std::string_view password) {
 }
 
 }  // namespace cpp_utils
+#endif

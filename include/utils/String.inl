@@ -26,6 +26,7 @@ SOFTWARE.
 
 #include "String.h"
 
+#include <algorithm>
 #include <array>
 
 namespace utils {

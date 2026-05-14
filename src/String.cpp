@@ -24,6 +24,7 @@ SOFTWARE.
 
 #include "utils/String.h"
 
+#ifdef _WIN32
 std::stringstream
 operator""_ss(char const* str, unsigned long long size) {
    return std::stringstream{{str, str + size}};
@@ -38,6 +39,22 @@ std::string
 operator""_str(char const* str, unsigned long long size) {
    return std::string{str, str + size};
 }
+#else
+std::stringstream
+operator""_ss(char const* str, unsigned long size) {
+   return std::stringstream{{str, str + size}};
+}
+
+std::string_view
+operator""_sv(char const* str, unsigned long size) {
+   return std::string_view{str, str + size};
+}
+
+std::string
+operator""_str(char const* str, unsigned long size) {
+   return std::string{str, str + size};
+}
+#endif
 
 #ifdef _WIN32
 
@@ -82,10 +99,12 @@ NarrowString(std::wstring_view input) {
      WideCharToMultiByte(cp, flags, input_c, input_length, nullptr, 0, nullptr, nullptr);
    if (required_length > 0) {
       std::string output(static_cast<std::size_t>(required_length), '\0');
-      if (WideCharToMultiByte(
-            cp, flags, input_c, input_length, &output[0], required_length, nullptr, nullptr
-          )
-          > 0) {
+      if (
+        WideCharToMultiByte(
+          cp, flags, input_c, input_length, &output[0], required_length, nullptr, nullptr
+        )
+        > 0
+      ) {
          return output;
       }
    }

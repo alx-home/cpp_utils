@@ -24,10 +24,6 @@ SOFTWARE.
 
 #include "utils/MessageQueue.h"
 
-#include <Windows.h>
-#include <processthreadsapi.h>
-#include <cassert>
-
 template <bool THROWS>
 std::thread::id
 MessageQueue<THROWS>::ThreadId() const {

@@ -27,6 +27,7 @@ SOFTWARE.
 #include <array>
 #include <condition_variable>
 #include <functional>
+#include <list>
 #include <map>
 #include <optional>
 #include <string_view>
@@ -60,8 +61,10 @@ public:
 
    template <class...>
       requires(THROWS)
-   void Dispatch(std::function<void()>&&, std::optional<time_point> delay = std::nullopt) const
-     noexcept(false);
+   void Dispatch(
+     std::function<void()>&&,
+     std::optional<time_point> delay = std::nullopt
+   ) const noexcept(false);
 
    template <class...>
       requires(THROWS)

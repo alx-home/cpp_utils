@@ -23,34 +23,36 @@ SOFTWARE.
 */
 
 #pragma once
+#ifdef _WIN32
 
-#include "utils/String.h"
+#   include "utils/String.h"
 
-#include "uuid.h"
+#   include "uuid.h"
 
-#include <iostream>
-#include <source_location>
-#include <string>
-#include <string_view>
-#include <vector>
-#include <cstddef>
+#   include <cstddef>
+#   include <iostream>
+#   include <source_location>
+#   include <string>
+#   include <string_view>
+#   include <vector>
 
 namespace cpp_utils {
 
 /**
- * @brief Concatenates two std::array objects into a single std::array at compile time.
+ * @brief Concatenates two std::array objects into a single std::array at
+ * compile time.
  *
- * This consteval function takes two std::array objects of the same type but possibly different
- * sizes, and returns a new std::array containing all elements of the first array followed by all
- * elements of the second array.
+ * This consteval function takes two std::array objects of the same type but
+ * possibly different sizes, and returns a new std::array containing all
+ * elements of the first array followed by all elements of the second array.
  *
  * @tparam T   The type of the elements in the arrays.
  * @tparam N1  The size of the first array.
  * @tparam N2  The size of the second array.
  * @param a    The first input array.
  * @param b    The second input array.
- * @return std::array<T, N1 + N2>  A new array containing all elements of 'a' followed by all
- * elements of 'b'.
+ * @return std::array<T, N1 + N2>  A new array containing all elements of 'a'
+ * followed by all elements of 'b'.
  */
 template <typename T, std::size_t N1, std::size_t N2>
 consteval std::array<T, N1 + N2>
@@ -69,11 +71,13 @@ Concat(std::array<T, N1> const& a, std::array<T, N2> const& b) {
 }
 
 /**
- * @brief Computes a hash value using the FNV-1a algorithm with additional mixing.
+ * @brief Computes a hash value using the FNV-1a algorithm with additional
+ * mixing.
  *
- * This function applies the FNV-1a hash algorithm, incorporating a single byte value (`v`)
- * into an existing hash value (`h`). It uses FNV and Murmur-inspired mixing steps to achieve
- * good distribution and avalanche properties.
+ * This function applies the FNV-1a hash algorithm, incorporating a single byte
+ * value (`v`) into an existing hash value (`h`). It uses FNV and
+ * Murmur-inspired mixing steps to achieve good distribution and avalanche
+ * properties.
  *
  * @param h The initial hash value to be updated.
  * @param v The byte value to mix into the hash.
@@ -91,16 +95,19 @@ Hash(std::size_t h, std::uint8_t v) {
 }
 
 /**
- * @brief Generates a unique compile-time identifier based on the current time and invocation count.
+ * @brief Generates a unique compile-time identifier based on the current time
+ * and invocation count.
  *
- * This consteval function generates a unique identifier by hashing the current compilation time
- * (using the __TIME__ macro) combined with an incrementing ID. The resulting identifier is an
- * array of bytes that can be used for various purposes, such as unique keys or identifiers in
- * compile-time contexts.
+ * This consteval function generates a unique identifier by hashing the current
+ * compilation time (using the __TIME__ macro) combined with an incrementing ID.
+ * The resulting identifier is an array of bytes that can be used for various
+ * purposes, such as unique keys or identifiers in compile-time contexts.
  *
- * @tparam SIZE The size of the resulting identifier in bytes (default is 1, resulting in 8 bytes).
+ * @tparam SIZE The size of the resulting identifier in bytes (default is 1,
+ * resulting in 8 bytes).
  * @tparam ID   The starting ID for uniqueness (default is 0).
- * @tparam FUN  A dummy template parameter to force re-instantiation (default is a lambda).
+ * @tparam FUN  A dummy template parameter to force re-instantiation (default is
+ * a lambda).
  * @return std::array<char, 8 * SIZE> A unique identifier as an array of bytes.
  */
 struct UniqueIdTag;
@@ -160,12 +167,15 @@ static_assert(
 );
 
 /**
- * @brief Deobfuscates a string stored in the program's data section using a compile-time key.
+ * @brief Deobfuscates a string stored in the program's data section using a
+ * compile-time key.
  *
- * This is intended for use with strings that are obfuscated at compile-time (e.g., XOR, ROT, etc.).
- * The obfuscation method must match the one used at compile-time.
+ * This is intended for use with strings that are obfuscated at compile-time
+ * (e.g., XOR, ROT, etc.). The obfuscation method must match the one used at
+ * compile-time.
  *
- * @tparam Key The obfuscation key (e.g., single char for XOR, or string for more complex schemes).
+ * @tparam Key The obfuscation key (e.g., single char for XOR, or string for
+ * more complex schemes).
  * @param obfuscated The obfuscated string data.
  * @return           The deobfuscated (plain) string.
  */
@@ -180,12 +190,15 @@ DeobfuscateString(std::string_view obfuscated) {
 }
 
 /**
- * @brief Deobfuscates a string stored in the program's data section using a compile-time key.
+ * @brief Deobfuscates a string stored in the program's data section using a
+ * compile-time key.
  *
- * This is intended for use with strings that are obfuscated at compile-time (e.g., XOR, ROT, etc.).
- * The obfuscation method must match the one used at compile-time.
+ * This is intended for use with strings that are obfuscated at compile-time
+ * (e.g., XOR, ROT, etc.). The obfuscation method must match the one used at
+ * compile-time.
  *
- * @tparam Key The obfuscation key (e.g., single char for XOR, or string for more complex schemes).
+ * @tparam Key The obfuscation key (e.g., single char for XOR, or string for
+ * more complex schemes).
  * @param obfuscated The obfuscated string data.
  * @return           The deobfuscated (plain) string.
  */
@@ -204,10 +217,12 @@ DeobfuscateString(std::vector<char> const& obfuscated) {
 /**
  * @brief Obfuscates a string at compile-time using a template key.
  *
- * This is intended for use with strings that are obfuscated at compile-time (e.g., XOR, ROT, etc.).
- * The obfuscation method must match the one used at runtime for deobfuscation.
+ * This is intended for use with strings that are obfuscated at compile-time
+ * (e.g., XOR, ROT, etc.). The obfuscation method must match the one used at
+ * runtime for deobfuscation.
  *
- * @tparam KEY The obfuscation key (e.g., single char for XOR, or string for more complex schemes).
+ * @tparam KEY The obfuscation key (e.g., single char for XOR, or string for
+ * more complex schemes).
  * @param plain The plain string data to obfuscate.
  * @return      The obfuscated string.
  */
@@ -225,27 +240,34 @@ std::string_view static constexpr ObfuscateString() {
 }
 
 /**
- * @brief Encrypts a string using Windows CryptoAPI with optional password entropy.
+ * @brief Encrypts a string using Windows CryptoAPI with optional password
+ * entropy.
  *
- * Uses CryptProtectData to securely encrypt the input. The password is used as additional entropy.
- * Only the same Windows user (and password, if provided) can decrypt the data.
+ * Uses CryptProtectData to securely encrypt the input. The password is used as
+ * additional entropy. Only the same Windows user (and password, if provided)
+ * can decrypt the data.
  *
  * @param input    The plaintext data to encrypt.
- * @param password Optional password/entropy to strengthen encryption (can be empty).
+ * @param password Optional password/entropy to strengthen encryption (can be
+ * empty).
  * @return         Pair of (success, encrypted data as string).
  */
 std::pair<bool, std::string> Encrypt(std::string_view input, std::string_view password);
 
 /**
- * @brief Decrypts a string using Windows CryptoAPI with optional password entropy.
+ * @brief Decrypts a string using Windows CryptoAPI with optional password
+ * entropy.
  *
- * Uses CryptUnprotectData to securely decrypt the input. The password must match the one used for
- * encryption. Only the same Windows user (and password, if provided) can decrypt the data.
+ * Uses CryptUnprotectData to securely decrypt the input. The password must
+ * match the one used for encryption. Only the same Windows user (and password,
+ * if provided) can decrypt the data.
  *
  * @param input    The encrypted data to decrypt.
- * @param password Optional password/entropy used during encryption (must match).
+ * @param password Optional password/entropy used during encryption (must
+ * match).
  * @return         Pair of (success, decrypted plaintext as string).
  */
 std::pair<bool, std::string> Decrypt(std::string_view input, std::string_view password);
 
 }  // namespace cpp_utils
+#endif

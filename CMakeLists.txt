@@ -11,7 +11,10 @@ win32_library(TARGET_NAME alx-home_cpp_utils
     src/String.cpp
 )
 add_library(alx-home::cpp_utils ALIAS alx-home_cpp_utils)
-target_link_libraries(alx-home_cpp_utils PRIVATE crypt32)
+
+if(MSVC)
+  target_link_libraries(alx-home_cpp_utils PRIVATE crypt32)
+endif()
 
 set(CUSTOM_UUID "GENERATED" CACHE STRING "Use a custom UUID seed for unique ids")
 

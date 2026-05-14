@@ -26,9 +26,15 @@ SOFTWARE.
 
 #include <sstream>
 
+#ifdef _WIN32
 std::stringstream operator""_ss(char const* str, unsigned long long);
 std::string_view  operator""_sv(char const* str, unsigned long long);
 std::string       operator""_str(char const* str, unsigned long long);
+#else
+std::stringstream operator""_ss(char const* str, unsigned long);
+std::string_view  operator""_sv(char const* str, unsigned long);
+std::string       operator""_str(char const* str, unsigned long);
+#endif
 
 #ifdef _WIN32
 #   include <Windows.h>

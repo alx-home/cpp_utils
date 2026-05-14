@@ -27,7 +27,9 @@ SOFTWARE.
 #include "utils/Pool.h"
 #include "utils/String.h"
 
-#include <processthreadsapi.h>
+#ifdef _WIN32
+#   include <processthreadsapi.h>
+#endif
 #include <algorithm>
 #include <cassert>
 
@@ -37,7 +39,12 @@ Pool<THROWS, SIZE>::Pool(std::string_view thread_name)
    , threads_{[this] constexpr {
       if constexpr (SIZE == 1) {
          return std::jthread{[this]() constexpr {
+#ifndef NDEBUG
+#   ifdef _WIN32
+            // Set the description of the current thread to the pool name
             SetThreadDescription(GetCurrentThread(), utils::WidenString(name_).c_str());
+#   endif
+#endif
 
             while (true) {
                std::unique_lock lock{mutex_};
@@ -71,13 +78,17 @@ Pool<THROWS, SIZE>::Pool(std::string_view thread_name)
                   elem();
                } else if (running_) {
 #ifndef NDEBUG
+#   ifdef _WIN32
                   SetThreadDescription(
                     GetCurrentThread(), (utils::WidenString(name_) + L" IDL").c_str()
                   );
+#   endif
 #endif
                   cv_.wait_until(lock, next_event_);
 #ifndef NDEBUG
+#   ifdef _WIN32
                   SetThreadDescription(GetCurrentThread(), utils::WidenString(name_).c_str());
+#   endif
 #endif
                } else {
                   assert(delayed_events_.empty());
@@ -88,9 +99,12 @@ Pool<THROWS, SIZE>::Pool(std::string_view thread_name)
       } else {
          return Threads{
            .dispatcher_ = std::jthread{[this] constexpr {
+#ifndef NDEBUG
+#   ifdef _WIN32
               // Set the description of the current thread to the pool name
               SetThreadDescription(GetCurrentThread(), utils::WidenString(name_).c_str());
-
+#   endif
+#endif
               while (true) {
                  std::unique_lock lock{mutex_};
 
@@ -129,8 +143,12 @@ Pool<THROWS, SIZE>::Pool(std::string_view thread_name)
    if constexpr (SIZE > 1) {
       for (std::size_t i = 0; i < SIZE; ++i) {
          threads_.workers_[i] = std::jthread{
-           [this](std::string&& thread_name) constexpr {
+           [this]([[maybe_unused]] std::string&& thread_name) constexpr {
+#ifndef NDEBUG
+#   ifdef _WIN32
               SetThreadDescription(GetCurrentThread(), utils::WidenString(thread_name).c_str());
+#   endif
+#endif
 
               while (true) {
                  std::unique_lock lock{mutex_};
@@ -143,15 +161,19 @@ Pool<THROWS, SIZE>::Pool(std::string_view thread_name)
                     elem();
                  } else if (running_) {
 #ifndef NDEBUG
+#   ifdef _WIN32
                     SetThreadDescription(
                       GetCurrentThread(), (utils::WidenString(thread_name) + L" IDL").c_str()
                     );
+#   endif
 #endif
                     cv_.wait(lock);
 #ifndef NDEBUG
+#   ifdef _WIN32
                     SetThreadDescription(
                       GetCurrentThread(), utils::WidenString(thread_name).c_str()
                     );
+#   endif
 #endif
                  } else if (delayed_events_.empty()) {
                     if (++threads_.done_ == SIZE) {
@@ -206,8 +228,10 @@ template <bool THROWS, std::size_t SIZE>
 template <class...>
    requires(!THROWS)
 bool
-Pool<THROWS, SIZE>::Dispatch(std::function<void()>&& func, std::optional<time_point> delay)
-  const noexcept {
+Pool<THROWS, SIZE>::Dispatch(
+  std::function<void()>&&   func,
+  std::optional<time_point> delay
+) const noexcept {
    std::unique_lock lock{mutex_};
    if (running_) {
       if (delay && !stopping_) {
@@ -237,8 +261,10 @@ template <bool THROWS, std::size_t SIZE>
 template <class...>
    requires(THROWS)
 void
-Pool<THROWS, SIZE>::Dispatch(std::function<void()>&& func, std::optional<time_point> delay) const
-  noexcept(false) {
+Pool<THROWS, SIZE>::Dispatch(
+  std::function<void()>&&   func,
+  std::optional<time_point> delay
+) const noexcept(false) {
    std::unique_lock lock{mutex_};
    if (running_) {
       if (delay && !stopping_) {
