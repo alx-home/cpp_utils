@@ -16,10 +16,18 @@ jobs:
               fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
 
          - name: Decode certificate
+           if: ${{ !env.ACT }}
            run: |
               echo ${SONAR_CERT} | base64 -d > /tmp/certs.p12
            env:
               SONAR_CERT: ${{ secrets.SONAR_CERT }}
+
+         - name: Patch sonar-project.properties for act
+           if: ${{ env.ACT }}
+           run: |
+              sed -i '/^sonar\.clientcert/d' sonar-project.properties
+              sed -i '/^sonar\.scanner\.key/d' sonar-project.properties
+              echo "sonar.scm.disabled=true" >> sonar-project.properties
 
          - name: SonarQube Scan
            uses: SonarSource/sonarqube-scan-action@v6
