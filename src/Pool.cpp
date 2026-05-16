@@ -24,20 +24,21 @@ SOFTWARE.
 
 #include "utils/Pool.inl"
 
-#define POOL_IMPL(IDX)                                                                             \
-   template class Pool<true, IDX>;                                                                 \
-   template void Pool<true, IDX>::                                                                 \
-     Dispatch<>(std::function<void()>&&, std::optional<Pool<true, IDX>::time_point>)               \
-       const noexcept(false);                                                                      \
-   template void Pool<true, IDX>::Dispatch<>(std::function<void()>&&, Pool<true, IDX>::duration)   \
-     const noexcept(false);                                                                        \
-                                                                                                   \
-   template class Pool<false, IDX>;                                                                \
-   template bool Pool<false, IDX>::                                                                \
-     Dispatch<>(std::function<void()>&&, std::optional<Pool<false, IDX>::time_point>)              \
-       const noexcept;                                                                             \
-   template bool Pool<false, IDX>::Dispatch<>(std::function<void()>&&, Pool<false, IDX>::duration) \
-     const noexcept;
+#define POOL_IMPL(IDX)                                                                           \
+   template class Pool<true, IDX>;                                                               \
+   template void Pool<true, IDX>::Dispatch<>(                                                    \
+     std::function<void()>&&, std::optional<Pool<true, IDX>::time_point>                         \
+   ) const noexcept(false);                                                                      \
+   template void Pool<true, IDX>::Dispatch<>(std::function<void()>&&, Pool<true, IDX>::duration) \
+     const noexcept(false);                                                                      \
+                                                                                                 \
+   template class Pool<false, IDX>;                                                              \
+   template std::pair<bool, std::optional<std::function<void()>>> Pool<false, IDX>::Dispatch<>(  \
+     std::function<void()>&&, std::optional<Pool<false, IDX>::time_point>                        \
+   ) const noexcept;                                                                             \
+   template std::pair<bool, std::optional<std::function<void()>>> Pool<false, IDX>::Dispatch<>(  \
+     std::function<void()>&&, Pool<false, IDX>::duration                                         \
+   ) const noexcept;
 
 #define POOL_IMPL_10(BASE) \
    POOL_IMPL((BASE) + 1)   \

@@ -227,13 +227,13 @@ Pool<THROWS, SIZE>::Stop() {
 template <bool THROWS, std::size_t SIZE>
 template <class...>
    requires(!THROWS)
-bool
+std::pair<bool, std::optional<std::function<void()>>>
 Pool<THROWS, SIZE>::Dispatch(
   std::function<void()>&&   func,
   std::optional<time_point> delay
 ) const noexcept {
    std::unique_lock lock{mutex_};
-   if (running_) {
+   if (!stopping_ && running_) {
       if (delay && !stopping_) {
          delayed_events_.emplace(*delay, std::move(func));
          auto const next_event = std::min(next_event_, delayed_events_.begin()->first);
@@ -251,10 +251,10 @@ Pool<THROWS, SIZE>::Dispatch(
          cv_.notify_one();
       }
 
-      return true;
+      return {true, std::nullopt};
    }
 
-   return false;
+   return {false, std::move(func)};
 }
 
 template <bool THROWS, std::size_t SIZE>
@@ -266,7 +266,7 @@ Pool<THROWS, SIZE>::Dispatch(
   std::optional<time_point> delay
 ) const noexcept(false) {
    std::unique_lock lock{mutex_};
-   if (running_) {
+   if (!stopping_ && running_) {
       if (delay && !stopping_) {
          delayed_events_.emplace(*delay, std::move(func));
          next_event_ = std::min(next_event_, delayed_events_.begin()->first);
@@ -290,7 +290,7 @@ Pool<THROWS, SIZE>::Dispatch(
 template <bool THROWS, std::size_t SIZE>
 template <class...>
    requires(!THROWS)
-bool
+std::pair<bool, std::optional<std::function<void()>>>
 Pool<THROWS, SIZE>::Dispatch(std::function<void()>&& func, duration delay) const noexcept {
    return Dispatch(std::move(func), std::chrono::steady_clock::now() + delay);
 }

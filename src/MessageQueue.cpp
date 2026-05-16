@@ -33,11 +33,11 @@ MessageQueue<THROWS>::ThreadId() const {
 template <bool THROWS>
 template <class...>
    requires(!THROWS)
-bool
+std::pair<bool, std::optional<std::function<void()>>>
 MessageQueue<THROWS>::Ensure(std::function<void()>&& func) const noexcept {
    if (std::this_thread::get_id() == ThreadId()) {
       func();
-      return true;
+      return {true, std::nullopt};
    }
 
    return Dispatch(std::move(func));
@@ -60,4 +60,6 @@ template class MessageQueue<false>;
 template class MessageQueue<true>;
 
 template void MessageQueue<true>::Ensure<>(std::function<void()>&&) const noexcept(false);
-template bool MessageQueue<false>::Ensure<>(std::function<void()>&&) const noexcept;
+template std::pair<bool, std::optional<std::function<void()>>> MessageQueue<false>::Ensure<>(
+  std::function<void()>&&
+) const noexcept;

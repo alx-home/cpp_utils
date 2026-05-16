@@ -37,7 +37,9 @@ public:
 
    template <class...>
       requires(!THROWS)
-   [[nodiscard]] bool Ensure(std::function<void()>&& func) const noexcept;
+   [[nodiscard]] std::pair<bool, std::optional<std::function<void()>>> Ensure(
+     std::function<void()>&& func
+   ) const noexcept;
 
    template <class...>
       requires(THROWS)

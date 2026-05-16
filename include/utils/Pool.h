@@ -52,12 +52,13 @@ public:
 
    template <class...>
       requires(!THROWS)
-   [[nodiscard]] bool
+   [[nodiscard]] std::pair<bool, std::optional<std::function<void()>>>
    Dispatch(std::function<void()>&&, std::optional<time_point> delay = std::nullopt) const noexcept;
 
    template <class...>
       requires(!THROWS)
-   [[nodiscard]] bool Dispatch(std::function<void()>&&, duration delay) const noexcept;
+   [[nodiscard]] std::pair<bool, std::optional<std::function<void()>>>
+   Dispatch(std::function<void()>&&, duration delay) const noexcept;
 
    template <class...>
       requires(THROWS)
