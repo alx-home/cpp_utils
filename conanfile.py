@@ -7,7 +7,7 @@ from conan.tools.files import collect_libs, copy, save
 
 class AlxCppUtilsConan(ConanFile):
     name = "alx-cpp-utils"
-    version = "1.1.0"
+    version = "1.1.1"
     license = "MIT"
     author = "alx-home"
     url = "https://github.com/alx-home/cpp_utils"
