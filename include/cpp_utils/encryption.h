@@ -121,12 +121,9 @@ UniqueId(std::source_location const& source = std::source_location::current()) {
 
    std::size_t hash = 0xcbf29ce484222325ULL;
 
-   hash = Hash(hash, time[0]);
-   hash = Hash(hash, time[1]);
-   hash = Hash(hash, time[3]);
-   hash = Hash(hash, time[4]);
-   hash = Hash(hash, time[6]);
-   hash = Hash(hash, time[7]);
+   for (std::size_t i = 0; i + 1 < time.size(); ++i) {
+      hash = Hash(hash, static_cast<std::uint8_t>(time[i]));
+   }
 
    for (std::size_t i = 0; i < sizeof(source.line()); ++i) {
       hash = Hash(hash, static_cast<std::uint8_t>((source.line() >> (i * 8)) & 0xFF));
