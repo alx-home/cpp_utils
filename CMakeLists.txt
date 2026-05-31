@@ -7,7 +7,6 @@ win32_library(TARGET_NAME alx-home_cpp_utils
     src/encryption.cpp
     src/MessageQueue.cpp
     src/Nonce.cpp
-    src/Pool.cpp
     src/String.cpp
 )
 add_library(alx-home::cpp_utils ALIAS alx-home_cpp_utils)

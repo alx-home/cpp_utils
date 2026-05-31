@@ -24,8 +24,13 @@ SOFTWARE.
 
 #pragma once
 
+#ifndef NOMINMAX
+#   define NOMINMAX
+#endif
+
 #include "utils/Pool.h"
 #include "utils/String.h"
+#include <functional>
 
 #ifdef _WIN32
 #   include <processthreadsapi.h>
@@ -227,10 +232,10 @@ Pool<THROWS, SIZE>::Stop() {
 template <bool THROWS, std::size_t SIZE>
 template <class...>
    requires(!THROWS)
-std::pair<bool, std::optional<std::function<void()>>>
-Pool<THROWS, SIZE>::Dispatch(
-  std::function<void()>&&   func,
-  std::optional<time_point> delay
+std::pair<bool, std::optional<std::move_only_function<void()>>>
+Pool<THROWS, SIZE>::DispatchImpl(
+  std::move_only_function<void()>&& func,
+  std::optional<time_point>         delay
 ) const noexcept {
    std::unique_lock lock{mutex_};
    if (!stopping_ && running_) {
@@ -261,9 +266,9 @@ template <bool THROWS, std::size_t SIZE>
 template <class...>
    requires(THROWS)
 void
-Pool<THROWS, SIZE>::Dispatch(
-  std::function<void()>&&   func,
-  std::optional<time_point> delay
+Pool<THROWS, SIZE>::DispatchImpl(
+  std::move_only_function<void()>&& func,
+  std::optional<time_point>         delay
 ) const noexcept(false) {
    std::unique_lock lock{mutex_};
    if (!stopping_ && running_) {
@@ -285,22 +290,6 @@ Pool<THROWS, SIZE>::Dispatch(
    }
 
    throw QueueStopped(name_);
-}
-
-template <bool THROWS, std::size_t SIZE>
-template <class...>
-   requires(!THROWS)
-std::pair<bool, std::optional<std::function<void()>>>
-Pool<THROWS, SIZE>::Dispatch(std::function<void()>&& func, duration delay) const noexcept {
-   return Dispatch(std::move(func), std::chrono::steady_clock::now() + delay);
-}
-
-template <bool THROWS, std::size_t SIZE>
-template <class...>
-   requires(THROWS)
-void
-Pool<THROWS, SIZE>::Dispatch(std::function<void()>&& func, duration delay) const noexcept(false) {
-   return Dispatch(std::move(func), std::chrono::steady_clock::now() + delay);
 }
 
 template <bool THROWS, std::size_t SIZE>

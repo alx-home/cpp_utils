@@ -61,9 +61,28 @@ public:
       }
    }
 
+   [[nodiscard]] auto operator()(
+     std::move_only_function<void(OBJECT_PUBLIC&)>&& callback
+   ) noexcept {
+      using Return = decltype(details_.MessageQueue::Ensure([] constexpr {}));
+      if constexpr (std::is_void_v<Return>) {
+         details_.MessageQueue::Ensure([this, callback = std::move(callback)] constexpr mutable {
+            callback(details_);
+         });
+      } else {
+         return details_.MessageQueue::Ensure(
+           [this, callback = std::move(callback)] constexpr mutable { callback(details_); }
+         );
+      }
+   }
+
    template <class T>
       requires(!std::is_void_v<T>)
    WPromise<T> operator()(std::function<T(OBJECT_PUBLIC&)>&& callback);
+
+   template <class T>
+      requires(!std::is_void_v<T>)
+   WPromise<T> operator()(std::move_only_function<T(OBJECT_PUBLIC&)>&& callback);
 
    bool await_ready() const {
       return std::this_thread::get_id() == details_.MessageQueue::ThreadId();

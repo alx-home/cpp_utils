@@ -25,6 +25,8 @@ SOFTWARE.
 #pragma once
 
 #include "Pool.h"
+#include <functional>
+#include <type_traits>
 
 template <bool THROWS = false>
 class MessageQueue : public Pool<THROWS, 1> {
@@ -35,15 +37,29 @@ public:
    using Pool<THROWS, 1>::Dispatch;
    using Pool<THROWS, 1>::Stop;
 
+   std::thread::id ThreadId() const;
+
+   template <class FUN>
+   [[nodiscard]] std::
+     conditional_t<THROWS, void, std::pair<bool, std::optional<std::move_only_function<void()>>>>
+     Ensure(FUN&& func) const noexcept(!THROWS) {
+      if constexpr (std::is_same_v<std::function<void()>, std::decay_t<FUN>>) {
+         return EnsureImpl(std::move_only_function<void()>{[func = std::move(func)]() mutable {
+            func();
+         }});
+      } else {
+         return EnsureImpl(std::move(func));
+      }
+   }
+
+private:
    template <class...>
       requires(!THROWS)
-   [[nodiscard]] std::pair<bool, std::optional<std::function<void()>>> Ensure(
-     std::function<void()>&& func
+   [[nodiscard]] std::pair<bool, std::optional<std::move_only_function<void()>>> EnsureImpl(
+     std::move_only_function<void()>&& func
    ) const noexcept;
 
    template <class...>
       requires(THROWS)
-   void Ensure(std::function<void()>&& func) const noexcept(false);
-
-   std::thread::id ThreadId() const;
+   void EnsureImpl(std::move_only_function<void()>&& func) const noexcept(false);
 };
