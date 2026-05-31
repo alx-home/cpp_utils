@@ -33,8 +33,8 @@ MessageQueue<THROWS>::ThreadId() const {
 template <bool THROWS>
 template <class...>
    requires(!THROWS)
-std::pair<bool, std::optional<std::function<void()>>>
-MessageQueue<THROWS>::Ensure(std::function<void()>&& func) const noexcept {
+std::pair<bool, std::optional<std::move_only_function<void()>>>
+MessageQueue<THROWS>::EnsureImpl(std::move_only_function<void()>&& func) const noexcept {
    if (std::this_thread::get_id() == ThreadId()) {
       func();
       return {true, std::nullopt};
@@ -47,7 +47,7 @@ template <bool THROWS>
 template <class...>
    requires(THROWS)
 void
-MessageQueue<THROWS>::Ensure(std::function<void()>&& func) const noexcept(false) {
+MessageQueue<THROWS>::EnsureImpl(std::move_only_function<void()>&& func) const noexcept(false) {
    if (std::this_thread::get_id() == ThreadId()) {
       func();
       return;
@@ -59,7 +59,8 @@ MessageQueue<THROWS>::Ensure(std::function<void()>&& func) const noexcept(false)
 template class MessageQueue<false>;
 template class MessageQueue<true>;
 
-template void MessageQueue<true>::Ensure<>(std::function<void()>&&) const noexcept(false);
-template std::pair<bool, std::optional<std::function<void()>>> MessageQueue<false>::Ensure<>(
-  std::function<void()>&&
-) const noexcept;
+template void MessageQueue<true>::EnsureImpl<>(std::move_only_function<void()>&&) const noexcept(
+  false
+);
+template std::pair<bool, std::optional<std::move_only_function<void()>>>
+MessageQueue<false>::EnsureImpl<>(std::move_only_function<void()>&&) const noexcept;

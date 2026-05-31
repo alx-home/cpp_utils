@@ -27,10 +27,10 @@ SOFTWARE.
 #include "Concepts.h"
 #include <type_traits>
 
-template <_function FUNC>
+template <alx::utils::_function FUNC>
 struct ScopeExit;
 
-template <_function FUNC>
+template <alx::utils::_function FUNC>
    requires(std::is_reference_v<FUNC>)
 struct ScopeExit<FUNC> {
    FUNC const& do_;
@@ -41,7 +41,7 @@ struct ScopeExit<FUNC> {
    constexpr ~ScopeExit() { do_(); }
 };
 
-template <_function FUNC>
+template <alx::utils::_function FUNC>
    requires(!std::is_reference_v<FUNC>)
 struct ScopeExit<FUNC> {
    FUNC do_;
@@ -52,5 +52,5 @@ struct ScopeExit<FUNC> {
    constexpr ~ScopeExit() { do_(); }
 };
 
-template <_function FUNC>
+template <alx::utils::_function FUNC>
 ScopeExit(FUNC) -> ScopeExit<FUNC>;
